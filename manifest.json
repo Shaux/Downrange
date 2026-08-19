@@ -1,0 +1,17 @@
+{
+  "name": "DOWNRANGE — Shot Group Analyzer",
+  "short_name": "DOWNRANGE",
+  "description": "Personal shot-group precision analyzer for load development.",
+  "id": "/",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#1B1A17",
+  "theme_color": "#1B1A17",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

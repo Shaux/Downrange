@@ -1,0 +1,2651 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DOWNRANGE — Shot Group Analyzer</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1B1A17">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="DOWNRANGE">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="icon" href="icon-192.png" type="image/png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Oswald:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#1B1A17; --panel:#242320; --panel-2:#2B2A25; --border:#3A3830;
+    --paper:#EDE7D9; --ink:#F1EEE4; --muted:#9A9284;
+    --brass:#B8793A; --brass-bright:#D8A15C; --shot:#D64B2A; --aim:#3E7CB1;
+    --good:#8FCB92; --bad:#E98467; --tag:#59A5A0; --tag-bright:#8FD8D2;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; background:var(--bg); color:var(--ink); font-family:'IBM Plex Mono', monospace; -webkit-font-smoothing:antialiased;}
+  h1,h2,h3,.label-font{font-family:'Oswald', sans-serif; text-transform:uppercase; letter-spacing:0.06em;}
+  header{padding:20px 24px 16px; border-bottom:1px solid var(--border); display:flex; align-items:baseline; justify-content:space-between; flex-wrap:wrap; gap:10px;}
+  header h1{font-size:22px; font-weight:700; margin:0; color:var(--brass-bright);}
+  header h1 span{color:var(--muted); font-weight:500; font-size:13px; letter-spacing:0.08em; margin-left:10px; text-transform:none; font-family:'IBM Plex Mono', monospace;}
+
+  .tabbar{display:flex; gap:4px; padding:0 18px; max-width:1560px; margin:0 auto; border-bottom:1px solid var(--border);}
+  .tab-btn{background:none; border:none; border-bottom:2px solid transparent; border-radius:0; padding:12px 18px; font-family:'Oswald',sans-serif; text-transform:uppercase; letter-spacing:0.06em; font-size:13px; font-weight:600; color:var(--muted); cursor:pointer;}
+  .tab-btn:hover{color:var(--ink);}
+  .tab-btn.active{color:var(--brass-bright); border-bottom-color:var(--brass);}
+
+  .app{display:grid; grid-template-columns: minmax(0,1fr) 400px; gap:18px; padding:18px; max-width:1560px; margin:0 auto;}
+  .analysis-grid{display:grid; grid-template-columns: 1fr 1fr; gap:18px; padding:18px; max-width:1560px; margin:0 auto;}
+  @media (max-width: 940px){ .app{grid-template-columns:1fr;} .analysis-grid{grid-template-columns:1fr;} }
+  .panel{background:var(--panel); border:1px solid var(--border); border-radius:6px; padding:14px;}
+  .canvas-wrap{display:flex; flex-direction:column; gap:14px;}
+  .toolbar{display:flex; gap:8px; flex-wrap:wrap; align-items:center;}
+  .sep{width:1px; align-self:stretch; background:var(--border); margin:0 2px;}
+  .mode-group{display:flex; border:1px solid var(--border); border-radius:4px; overflow:hidden;}
+  button, .file-btn{font-family:'Oswald', sans-serif; text-transform:uppercase; letter-spacing:0.05em; font-size:12px; font-weight:600; background:var(--panel-2); color:var(--ink); border:1px solid var(--border); padding:8px 12px; cursor:pointer; border-radius:4px; transition:background 0.15s, color 0.15s, border-color 0.15s;}
+  button:hover, .file-btn:hover{border-color:var(--brass);}
+  .mode-group button{border:none; border-radius:0; border-right:1px solid var(--border);}
+  .mode-group button:last-child{border-right:none;}
+  .mode-group button.active{background:var(--brass); color:#1B1A17;}
+  button.danger:hover{border-color:var(--shot);}
+  button.primary{background:var(--brass); color:#1B1A17; border-color:var(--brass);}
+  button.primary:hover{background:var(--brass-bright);}
+  button:disabled{opacity:0.35; cursor:not-allowed;}
+  button.iconbtn{padding:8px 14px; font-size:14px;}
+  input[type="file"]{display:none;}
+  .canvas-holder{position:relative; background:var(--paper); border:1px solid var(--border); border-radius:4px; overflow:hidden; display:flex; align-items:center; justify-content:center; min-height:320px;}
+  #canvasHolder{touch-action:none;}
+  canvas{display:block; max-width:100%; height:auto; cursor:crosshair;}
+  .hint{font-size:11px; color:var(--muted); line-height:1.5;}
+  .section-title{font-size:12px; color:var(--brass-bright); font-weight:600; margin:0 0 10px; padding-bottom:8px; border-bottom:1px solid var(--border); font-family:'Oswald',sans-serif; text-transform:uppercase; letter-spacing:0.05em;}
+  .field-row{display:flex; gap:8px; margin-bottom:10px; align-items:center;}
+  .field-row label{font-size:11px; color:var(--muted); flex:0 0 auto; min-width:70px;}
+  input[type="number"], input[type="text"], select, textarea{background:var(--bg); border:1px solid var(--border); color:var(--ink); font-family:'IBM Plex Mono', monospace; font-size:12px; padding:6px 8px; border-radius:4px; width:100%;}
+  textarea{resize:vertical;}
+  select{cursor:pointer;}
+  .empty-note{font-size:11px; color:var(--muted); padding:10px 0; text-align:center;}
+  .divider{border-top:1px solid var(--border); margin:16px 0;}
+  .legend{display:flex; gap:14px; flex-wrap:wrap; font-size:10px; color:var(--muted); margin-top:8px;}
+  .legend .dot{display:inline-block; width:8px;height:8px; border-radius:50%; margin-right:4px; vertical-align:middle;}
+
+  .stats-table{width:100%; border-collapse:collapse; font-size:11px;}
+  .stats-table th, .stats-table td{padding:5px 6px; border-bottom:1px solid var(--border); text-align:left;}
+  .stats-table th{color:var(--brass-bright); font-family:'Oswald',sans-serif; text-transform:uppercase; font-size:9.5px; letter-spacing:0.05em;}
+  .stats-table td:first-child{color:var(--muted); white-space:nowrap;}
+  .stats-table tr:last-child td{border-bottom:none;}
+
+  .group-list{display:flex; flex-direction:column; gap:8px; margin-bottom:10px;}
+  .group-card{border:1px solid var(--border); border-radius:4px; overflow:hidden; background:var(--bg);}
+  .group-card-header{display:flex; align-items:center; gap:8px; padding:8px 10px; cursor:pointer; font-size:12px; flex-wrap:wrap;}
+  .group-card-header:hover{background:var(--panel-2);}
+  .group-card-header .name{flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:60px;}
+  .group-card-header .count{color:var(--muted); font-size:10.5px; white-space:nowrap;}
+  .group-card-header input[type=checkbox]{accent-color:var(--brass);}
+  .group-card-header button{padding:2px 6px; font-size:10px;}
+  .group-card-body{padding:10px; border-top:1px solid var(--border);}
+  .type-tag{font-size:9px; padding:2px 6px; border-radius:3px; font-family:'Oswald',sans-serif; letter-spacing:0.05em; white-space:nowrap;}
+  .type-tag.single{background:rgba(62,124,177,0.2); color:#7EB3DE;}
+  .type-tag.composite{background:rgba(184,121,58,0.25); color:var(--brass-bright);}
+  .type-tag.best{background:rgba(94,163,97,0.22); color:var(--good);}
+  .type-tag.worst{background:rgba(214,75,42,0.2); color:var(--bad);}
+  .type-tag.tagpill{background:rgba(89,165,160,0.2); color:var(--tag-bright);}
+  .meta-block{font-size:11px; color:var(--muted); line-height:1.6; margin-bottom:10px;}
+  .meta-block strong{color:var(--ink); font-weight:600;}
+  #compareWrap{overflow-x:auto;}
+  #compareTable{min-width:640px;}
+  #importStatus{font-size:11px; color:var(--muted); margin-top:6px; min-height:14px;}
+
+  .guide-wrap{max-width:900px; margin:0 auto; padding:24px 18px 60px;}
+  .guide-section{margin-bottom:30px;}
+  .guide-section h2{font-size:17px; color:var(--brass-bright); margin:0 0 6px;}
+  .guide-section h3{font-size:13px; color:var(--ink); margin:18px 0 6px; font-family:'Oswald',sans-serif; text-transform:uppercase; letter-spacing:0.04em;}
+  .guide-section p, .guide-section li{font-size:12.5px; color:var(--muted); line-height:1.7;}
+  .guide-section .lede{font-size:14px; color:var(--ink); line-height:1.7;}
+  .guide-section ul, .guide-section ol{padding-left:20px; margin:6px 0;}
+  .guide-section strong{color:var(--ink);}
+
+  .settings-wrap{max-width:640px; margin:0 auto; padding:24px 18px 60px;}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>DOWNRANGE <span>PERSONAL SHOT GROUP ANALYZER</span></h1>
+  <div class="hint">Data stays on this device.</div>
+</header>
+
+<div class="tabbar">
+  <button class="tab-btn active" data-tab="setup">Setup</button>
+  <button class="tab-btn" data-tab="analysis">Analysis</button>
+  <button class="tab-btn" data-tab="guide">Guide</button>
+  <button class="tab-btn" data-tab="settings">Settings</button>
+</div>
+
+<div id="swUpdateBanner" style="display:none; align-items:center; gap:12px; justify-content:center; background:var(--brass); border-bottom:1px solid var(--brass-bright); padding:8px 18px; font-size:12px; font-weight:600; color:#1B1A17;">
+  <span>A new version of DOWNRANGE is available.</span>
+  <button id="swUpdateReloadBtn" style="background:#1B1A17; color:var(--brass-bright); border-color:#1B1A17;">RELOAD</button>
+</div>
+
+<div id="introBanner" style="display:none; align-items:center; gap:12px; flex-wrap:wrap; background:var(--panel-2); border-bottom:1px solid var(--brass); padding:10px 18px; font-size:12px; color:var(--muted);">
+  <span>New here? The <strong style="color:var(--ink);">Guide</strong> tab has a full walkthrough. Everything stays on this device — nothing is uploaded.</span>
+  <button id="introBannerDismiss" style="margin-left:auto;">GOT IT</button>
+</div>
+
+<div id="undoToast" style="display:none; align-items:center; gap:12px; position:fixed; bottom:16px; left:50%; transform:translateX(-50%); background:var(--panel-2); border:1px solid var(--brass); border-radius:6px; padding:10px 16px; font-size:12px; color:var(--ink); z-index:1000; box-shadow:0 4px 16px rgba(0,0,0,0.5); max-width:90vw;">
+  <span id="undoToastText"></span>
+  <button id="undoDeleteBtn" class="primary">UNDO</button>
+</div>
+
+<!-- ================= SETUP TAB ================= -->
+<div class="app tab-content" id="tab-setup">
+
+  <div class="canvas-wrap">
+    <div class="panel">
+      <div class="toolbar">
+        <label class="file-btn" id="loadPhotoLabel">LOAD TARGET PHOTO<input type="file" id="fileInput" accept="image/*"></label>
+        <button id="blankBtn">BLANK GRID</button>
+        <button id="rotateLeftBtn" class="iconbtn" title="Rotate photo left" aria-label="Rotate photo left" disabled>⟲</button>
+        <button id="rotateRightBtn" class="iconbtn" title="Rotate photo right" aria-label="Rotate photo right" disabled>⟳</button>
+        <div class="mode-group">
+          <button class="mode-btn" data-mode="calibrate">CALIBRATE</button>
+          <button class="mode-btn" data-mode="aim">AIM POINT</button>
+          <button class="mode-btn active" data-mode="shot">SHOT</button>
+          <button class="mode-btn" data-mode="coldbore">COLD BORE</button>
+          <button class="mode-btn" data-mode="pan">PAN</button>
+        </div>
+      </div>
+      <div class="toolbar" style="margin-top:8px;">
+        <button id="undoBtn">UNDO</button>
+        <button id="clearBtn" class="danger">CLEAR SHOTS</button>
+        <button id="newTargetBtn">NEW TARGET (SAME PHOTO)</button>
+        <div class="sep"></div>
+        <button id="zoomOutBtn" class="iconbtn" aria-label="Zoom out">−</button>
+        <button id="zoomResetBtn">FIT</button>
+        <button id="zoomInBtn" class="iconbtn" aria-label="Zoom in">+</button>
+      </div>
+      <div class="hint" style="margin-top:6px;">Photo and calibration stay loaded after every save — for a sheet with several bullseyes, hit <strong>New Target</strong> (or just switch to Aim Point and click the next bull), mark its shots, and save again.</div>
+      <div class="field-row" id="calibInputRow" style="display:none; margin-top:10px;">
+        <label>Known dist.</label>
+        <input type="number" id="calibDistInput" step="any" min="0" placeholder="e.g. 1">
+        <span style="font-size:11px; color:var(--muted); white-space:nowrap;" id="calibUnitLabel"></span>
+        <button id="calibSetBtn" class="primary">SET SCALE</button>
+      </div>
+      <div class="canvas-holder" id="canvasHolder" style="margin-top:10px;">
+        <canvas id="cv" width="900" height="900" role="img" aria-label="Target photo with shot markers. Use the mode buttons above to mark shots, aim point, or calibration."></canvas>
+      </div>
+      <div class="legend">
+        <span><span class="dot" style="background:var(--shot)"></span>Shot</span>
+        <span><span class="dot" style="background:var(--aim)"></span>Aim point</span>
+        <span><span class="dot" style="background:#E6C229"></span>Cold-bore shot</span>
+        <span><span class="dot" style="background:var(--brass-bright)"></span>Group center (POI)</span>
+      </div>
+      <div class="hint" id="calibHint" style="margin-top:8px;" aria-live="polite"></div>
+    </div>
+  </div>
+
+  <div class="sidebar">
+
+    <div class="panel" style="margin-bottom:14px;">
+      <div class="section-title">UNITS</div>
+      <div class="field-row">
+        <label>Measure in</label>
+        <select id="unitSelect">
+          <option value="mm">millimeters</option>
+          <option value="cm">centimeters</option>
+          <option value="in">inches</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="section-title">CURRENT GROUP</div>
+      <div class="field-row">
+        <label>Name</label>
+        <input type="text" id="groupNameInput" placeholder="Group 1">
+      </div>
+      <div class="field-row">
+        <label>Tags</label>
+        <input type="text" id="groupTagsInput" placeholder="e.g. load-dev, zero-check">
+      </div>
+      <div class="field-row">
+        <label>Distance</label>
+        <input type="number" id="groupDistanceValue" placeholder="optional" min="0" step="any">
+        <select id="groupDistanceUnit" style="max-width:80px;">
+          <option value="m">m</option>
+          <option value="yd">yd</option>
+          <option value="ft">ft</option>
+        </select>
+      </div>
+      <div class="field-row">
+        <label></label>
+        <label style="display:flex; align-items:center; gap:6px; font-size:11px; color:var(--muted); width:auto;">
+          <input type="checkbox" id="includeZeroCheckInput" checked style="width:auto;"> Include in Zero Check
+        </label>
+      </div>
+      <div class="hint" style="margin:-6px 0 10px 78px;">Turn off for load-development groups that aren't meant to represent your zero (e.g. testing a new load off a known-good zero, or shot without re-zeroing).</div>
+      <div class="field-row">
+        <label>Caliber</label>
+        <select id="caliberSelect">
+          <option value="none" selected>None</option>
+          <option value="4.4">.17 (4.4mm)</option>
+          <option value="5.0">.20 (5.0mm)</option>
+          <option value="5.7">.223 / 5.56 (5.7mm)</option>
+          <option value="6.17">6mm / .243 (6.17mm)</option>
+          <option value="6.71">6.5mm / .264 (6.71mm)</option>
+          <option value="7.04">.270 (7.04mm)</option>
+          <option value="7.21">7mm / .284 (7.21mm)</option>
+          <option value="7.82">.308 / 7.62 (7.82mm)</option>
+          <option value="8.59">.338 (8.59mm)</option>
+          <option value="9.02">9mm Luger (9.02mm)</option>
+          <option value="10.2">.40 S&amp;W (10.2mm)</option>
+          <option value="11.43">.45 ACP (11.43mm)</option>
+          <option value="custom">Custom…</option>
+        </select>
+      </div>
+      <div class="field-row" id="caliberCustomRow" style="display:none;">
+        <label></label>
+        <input type="number" id="caliberCustomInput" step="any" min="0" placeholder="bullet diameter">
+        <span style="font-size:11px; color:var(--muted); white-space:nowrap;" id="caliberCustomUnit"></span>
+      </div>
+      <div class="field-row">
+        <label>Ammo/Load</label>
+        <input type="text" id="groupAmmoInput" placeholder="e.g. Hornady ELD-M 140gr">
+      </div>
+      <div class="field-row">
+        <label>Charge</label>
+        <input type="number" id="groupChargeInput" step="any" min="0" placeholder="gr (optional)">
+      </div>
+      <div class="field-row">
+        <label>Seating</label>
+        <input type="number" id="groupSeatingInput" step="any" placeholder="optional">
+        <select id="groupSeatingUnit" style="max-width:70px;">
+          <option value="mm">mm</option>
+          <option value="in">in</option>
+        </select>
+      </div>
+      <div class="field-row">
+        <label>Velocities</label>
+        <input type="text" id="groupVelocitiesInput" placeholder="e.g. 2850 2861 2843">
+        <select id="groupVelocityUnit" style="max-width:70px;">
+          <option value="fps">fps</option>
+          <option value="mps" selected>m/s</option>
+        </select>
+      </div>
+      <div class="field-row">
+        <label>Temp</label>
+        <input type="number" id="groupTempInput" step="any" placeholder="optional">
+        <select id="groupTempUnit" style="max-width:60px;">
+          <option value="C">°C</option>
+          <option value="F">°F</option>
+        </select>
+      </div>
+      <div class="field-row">
+        <label>Humidity</label>
+        <input type="number" id="groupHumidityInput" step="any" min="0" max="100" placeholder="% optional">
+      </div>
+      <div class="field-row">
+        <label>Wind</label>
+        <input type="text" id="groupWindInput" placeholder="e.g. 5mph @ 3 o'clock">
+      </div>
+      <div class="field-row" style="align-items:flex-start;">
+        <label style="padding-top:6px;">Notes</label>
+        <textarea id="groupNotesInput" rows="2" placeholder="optional notes"></textarea>
+      </div>
+      <div class="field-row" id="attachImageRow" style="display:none;">
+        <label></label>
+        <label style="display:flex; align-items:center; gap:6px; font-size:11px; color:var(--muted); width:auto;">
+          <input type="checkbox" id="attachImageCheckbox" checked style="width:auto;"> Attach photo thumbnail for summary view
+        </label>
+      </div>
+      <div id="editBanner" class="hint" style="display:none; color:var(--brass-bright); margin-bottom:8px;"></div>
+      <div id="currentStatsTable"></div>
+      <div id="currentColdBoreTable"></div>
+      <div id="currentVelocityTable"></div>
+      <div class="toolbar" style="margin-top:10px;">
+        <button id="saveGroupBtn" class="primary" style="flex:1;" disabled>SAVE GROUP</button>
+        <button id="cancelEditBtn" style="display:none;">CANCEL</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================= ANALYSIS TAB ================= -->
+<div class="analysis-grid tab-content" id="tab-analysis" style="display:none;">
+
+  <div>
+    <div class="panel" style="margin-bottom:14px;">
+      <div class="section-title">SAVED GROUPS</div>
+      <div class="field-row">
+        <label>Filter</label>
+        <input type="text" id="groupFilterInput" placeholder="name or tag…">
+      </div>
+      <div class="group-list" id="groupList"></div>
+      <div class="empty-note" id="groupEmpty">No saved groups yet.</div>
+      <button id="compositeBtn" style="width:100%; margin-bottom:8px;" disabled>COMBINE SELECTED → COMPOSITE GROUP</button>
+      <div class="toolbar" style="margin-bottom:8px;">
+        <button id="exportPointsBtn" style="flex:1;">POINTS CSV</button>
+        <button id="exportSummaryBtn" style="flex:1;">SUMMARY CSV</button>
+      </div>
+      <div class="toolbar">
+        <button id="exportSessionBtn" style="flex:1;">EXPORT SESSION</button>
+        <button id="importSessionBtn" style="flex:1;">IMPORT SESSION</button>
+        <input type="file" id="importFile" accept="application/json">
+      </div>
+      <div id="importStatus"></div>
+      <div id="storageStatus" class="hint" style="color:var(--bad);"></div>
+    </div>
+
+    <div class="panel">
+      <div class="section-title">ZERO CHECK</div>
+      <div id="zeroCheckBody"></div>
+    </div>
+  </div>
+
+  <div>
+    <div class="panel" style="margin-bottom:14px;">
+      <div class="section-title">GROUP SUMMARY</div>
+      <div class="field-row">
+        <label>View group</label>
+        <select id="summaryGroupSelect"><option value="">— select a group —</option></select>
+      </div>
+      <div class="toolbar" style="margin-bottom:10px;">
+        <div class="mode-group">
+          <button id="summaryBgImageBtn" data-bg="image">IMAGE</button>
+          <button id="summaryBgGridBtn" data-bg="grid" class="active">GRID</button>
+        </div>
+        <button id="exportSummaryImageBtn">EXPORT PNG</button>
+      </div>
+      <div class="canvas-holder" style="min-height:300px;">
+        <canvas id="summaryCanvas" width="640" height="500" role="img" aria-label="Group visualization showing shots, aim point, and precision rings."></canvas>
+      </div>
+      <div class="legend" id="summaryLegend" style="margin-top:8px;"></div>
+      <div class="hint" id="summaryStatsLine" style="margin-top:6px;"></div>
+      <div id="summaryBreakdown"></div>
+    </div>
+
+    <div class="panel" style="margin-bottom:14px;">
+      <div class="section-title">TREND</div>
+      <div class="field-row">
+        <label>Metric</label>
+        <select id="trendMetricSelect">
+          <option value="es">Extreme spread</option>
+          <option value="mr">Mean radius</option>
+          <option value="dispersion">Dispersion (avg SD)</option>
+          <option value="cepMeasured">CEP-50</option>
+          <option value="sdX">SD horizontal</option>
+          <option value="sdY">SD vertical</option>
+          <option value="velAvg">Velocity average</option>
+          <option value="velSD">Velocity SD</option>
+        </select>
+      </div>
+      <div class="field-row">
+        <label>Filter</label>
+        <select id="trendFilterSelect"><option value="">All groups</option></select>
+      </div>
+      <div class="field-row">
+        <label>Units</label>
+        <select id="trendUnitSelect" style="max-width:110px;">
+          <option value="mm">mm</option>
+          <option value="cm">cm</option>
+          <option value="in">in</option>
+          <option value="mrad">mrad</option>
+          <option value="moa">MOA</option>
+        </select>
+        <select id="trendVelUnitSelect" style="max-width:90px;">
+          <option value="fps">fps</option>
+          <option value="mps" selected>m/s</option>
+        </select>
+      </div>
+      <div class="field-row">
+        <label>X-axis</label>
+        <div class="mode-group">
+          <button id="trendXOrderBtn" class="active" type="button">ORDER</button>
+          <button id="trendXChargeBtn" type="button">CHARGE</button>
+          <button id="trendXSeatingBtn" type="button">SEATING</button>
+        </div>
+      </div>
+      <div class="field-row">
+        <label></label>
+        <label style="display:flex; align-items:center; gap:6px; font-size:11px; color:var(--muted); width:auto;">
+          <input type="checkbox" id="trendBoxPlotInput" style="width:auto;"> Show velocity as box plot (min/median/max spread per group)
+        </label>
+      </div>
+      <div class="canvas-holder" style="min-height:220px;">
+        <canvas id="trendCanvas" width="640" height="260" role="img" aria-label="Trend chart of the selected metric across saved groups."></canvas>
+      </div>
+      <div class="hint" id="trendHint" style="margin-top:6px;"></div>
+    </div>
+
+    <div class="panel">
+      <div class="section-title">COMPARE GROUPS</div>
+      <div class="field-row">
+        <label>Units</label>
+        <select id="compareUnitSelect">
+          <option value="mm">mm</option>
+          <option value="cm">cm</option>
+          <option value="in">in</option>
+          <option value="mrad">mrad</option>
+          <option value="moa">MOA</option>
+        </select>
+      </div>
+      <div id="compareWrap">
+        <table class="stats-table" id="compareTable"></table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================= SETTINGS TAB ================= -->
+<div class="settings-wrap tab-content" id="tab-settings" style="display:none;">
+  <div class="panel">
+    <div class="section-title">DEFAULT UNITS</div>
+    <div class="hint" style="margin-bottom:12px;">These set the unit each new group starts with. Changing them here doesn't affect groups you've already saved.</div>
+    <div class="field-row">
+      <label>Measurement</label>
+      <select id="settingsUnitSelect">
+        <option value="mm">millimeters</option>
+        <option value="cm">centimeters</option>
+        <option value="in">inches</option>
+      </select>
+    </div>
+    <div class="field-row">
+      <label>Distance</label>
+      <select id="settingsDistanceUnitSelect">
+        <option value="m">m</option>
+        <option value="yd">yd</option>
+        <option value="ft">ft</option>
+      </select>
+    </div>
+    <div class="field-row">
+      <label>Velocity</label>
+      <select id="settingsVelocityUnitSelect">
+        <option value="fps">fps</option>
+        <option value="mps" selected>m/s</option>
+      </select>
+    </div>
+    <div class="hint">More settings will land here later.</div>
+  </div>
+</div>
+
+<!-- ================= GUIDE TAB ================= -->
+<div class="guide-wrap tab-content" id="tab-guide" style="display:none;">
+
+  <div class="guide-section">
+    <h2>What this is</h2>
+    <p class="lede">DOWNRANGE is a personal shot-group precision analyzer. Photograph a target (or use a blank reference grid), mark your shots and point of aim, and it computes the same statistics ballistic-analysis software gives you — extreme spread, mean radius, CEP, standard deviations, MOA/mil conversions — plus load-development tools most tools don't have: composite groups that show how each load deviates from your zero, charge and seating-depth ladder charts, environmental logging, and session-wide zero checking. Everything is stored locally in your browser — nothing is uploaded anywhere.</p>
+  </div>
+
+  <div class="guide-section">
+    <h2>Quick start</h2>
+    <ol>
+      <li>On the <strong>Setup</strong> tab, load a target photo, or click <strong>Blank Grid</strong> if you don't have one.</li>
+      <li>Switch to <strong>Calibrate</strong> mode, click two points a known distance apart (a grid square, ruler mark, bull diameter), and enter that distance when the field appears.</li>
+      <li>Switch to <strong>Aim Point</strong> mode and click the bullseye / zero point.</li>
+      <li>Switch to <strong>Shot</strong> mode and click each bullet hole. Click an existing marker to remove it.</li>
+      <li>Fill in whatever metadata matters to you — name, distance, caliber, ammo, charge, seating depth, velocities, conditions, notes, tags.</li>
+      <li>Click <strong>Save Group</strong>. The photo and calibration stay loaded, so if there's another bullseye on the same sheet, hit <strong>New Target</strong> (or just re-mark the aim point) and mark it next.</li>
+      <li>Switch to the <strong>Analysis</strong> tab to review, compare, combine, or visualize your saved groups.</li>
+    </ol>
+  </div>
+
+  <div class="guide-section">
+    <h2>Feature reference</h2>
+
+    <h3>Calibration &amp; units</h3>
+    <p>Calibration converts pixels to real-world units. Pick millimeters, centimeters, or inches before calibrating — recalibrating overwrites the scale for the current photo. Set your usual defaults on the Settings tab.</p>
+
+    <h3>Marking: shots, aim point, cold-bore</h3>
+    <p>Shot mode adds/removes bullet holes. Aim Point marks your point of aim (needed for windage/elevation/zero-shift numbers). Cold-Bore marks a single shot — typically your first round of the string — shown as a distinct diamond marker and reported separately; it is never included in the group's own statistics.</p>
+
+    <h3>Multiple groups per photo</h3>
+    <p>Saving a group keeps the photo, calibration, zoom, and distance loaded. For a sheet with several bullseyes, just click <strong>New Target</strong> (or re-mark Aim Point directly) to clear the current unsaved shots/aim and mark the next one.</p>
+
+    <h3>Zoom, pan &amp; pinch</h3>
+    <p>Scroll wheel zooms toward the cursor. Two-finger pinch zooms on touch devices. Switch to Pan mode to drag the view. Markers stay a constant on-screen size regardless of zoom, so precision doesn't degrade when you zoom in.</p>
+
+    <h3>Caliber &amp; to-scale holes</h3>
+    <p>Pick a bullet caliber and shot markers render at true diameter (scaled through calibration and zoom), and the table adds a "max spread, edge-to-edge" row — the classic caliper-measurement convention (center-to-center + one bullet diameter).</p>
+
+    <h3>Velocity &amp; conditions</h3>
+    <p>Enter space- or comma-separated velocities per group; average, extreme spread, and SD are computed automatically. Optional temperature, humidity, and wind fields let you log conditions that can confound a load-development comparison across sessions.</p>
+
+    <h3>Small-sample warning</h3>
+    <p>Groups with fewer than 5 shots show a note reminding you that extreme spread and CEP get noisy at small sample sizes — worth keeping in mind before reading too much into a 3-shot group.</p>
+
+    <h3>Tags &amp; filtering</h3>
+    <p>Add comma-separated tags to any group. The Saved Groups filter box matches against name or tags.</p>
+
+    <h3>Editing a saved group</h3>
+    <p>Click Edit on any group card — it jumps you to the Setup tab and reconstructs the group's shots and aim point on a reference grid. Add, remove, or nudge shots exactly like a live session, edit any field, then Update to save changes back into that same group, or Cancel to discard.</p>
+
+    <h3>Composite groups</h3>
+    <p>Select two or more saved groups and combine them. If every member has a marked point of aim, the composite centers on point of aim — each source group's own mean point of impact draws as a large hollow circle in that load's color (small dots are individual shots), kept visually distinct from the blue point-of-aim crosshair and the brass crosshair marking the overall pooled center, so you can see exactly how each load deviates from POA at a glance. A per-load breakdown table lists each source's offset, ES, and MR side by side. If any member lacks a point of aim, it falls back to centering each group on its own mean impact point instead (pooled precision only, no accuracy claim).</p>
+
+    <h3>Group Summary</h3>
+    <p>Pick any group and see it plotted visually — on the original photo (if attached when saving) or an auto-fit reference grid. Export as PNG to share.</p>
+
+    <h3>Compare Groups</h3>
+    <p>Every group's key numbers side by side, including Dispersion, with its own unit selector — mm/cm/in for linear, or mrad/MOA for angular (using each group's own distance; groups without a distance show "—" in angular mode). Tightest and loosest groups are highlighted automatically.</p>
+
+    <h3>Zero Check</h3>
+    <p>Pools windage/elevation across every single group with both a point of aim and a distance — a quick check on whether your zero is holding steady across sessions. Each group has an "Include in Zero Check" toggle (on by default) so load-development groups — shot to compare charges or seating depths, not to confirm your zero — don't skew the pooled result. Excluded groups show a "NOT ZEROED" badge in the group list.</p>
+
+    <h3>Trend &amp; ladder charts</h3>
+    <p>Plots a chosen metric — group size stats, Dispersion, or velocity average/SD — against your choice of x-axis: save order (chronological), Charge, or Seating depth. Charge and Seating modes only include groups where that field is set, order by it, and label each point with its value — the classic ladder/OCW-test chart for spotting a flat "node" while developing a load. Units are shown directly on the chart axis and can be set independently of your marking unit — mm/cm/in, or mrad/MOA (using each group's own distance; groups lacking one are excluded from that view rather than shown wrong).</p>
+    <p><strong>Velocity box plot:</strong> tick "Show velocity as box plot" to replace the line chart with one box per group showing the full min/median/max spread of that group's velocity readings — much more informative than a single average point for comparing consistency across charges or loads. Still respects the load/tag filter and x-axis mode.</p>
+
+    <h3>Dispersion</h3>
+    <p>The average of a group's horizontal and vertical standard deviations — a single-number summary of spread, shown with extra decimal precision since it's a derived average. Available in the per-group stats table, the Compare Groups table, and as a Trend metric.</p>
+
+    <h3>Export &amp; import</h3>
+    <p>Points CSV and Summary CSV give you raw and computed data. Export Session saves everything — groups, metadata, attached photos — as one JSON file; Import Session restores it, here or on another device.</p>
+
+    <h3>Settings</h3>
+    <p>Set your default measurement, distance, and velocity units so new groups start with what you normally use.</p>
+  </div>
+
+  <div class="guide-section">
+    <h2>Tips</h2>
+    <ul>
+      <li>Distance stays filled in after each save, since it's usually constant across every group at one session.</li>
+      <li>Zero-shift and MOA/mil figures need a distance set on that group to appear.</li>
+      <li>CEP is shown two ways: measured (median distance from center across actual shots) and calculated (approximation from standard deviations) — they can diverge on small groups, which is normal.</li>
+      <li>Log charge weight and/or seating depth on every group during a ladder test to unlock the Trend chart's ladder view.</li>
+    </ul>
+  </div>
+
+  <div class="guide-section">
+    <h2>Data &amp; privacy</h2>
+    <p>Everything is stored locally in this browser only. Nothing is sent anywhere. Export a session backup for a durable copy.</p>
+  </div>
+
+</div>
+
+<script>
+// ================= window.storage polyfill (IndexedDB-backed) =================
+// This app was originally built against a host-provided window.storage API
+// (get/set/delete/list, async, key-value). This polyfill reimplements the same
+// surface on top of IndexedDB so the app runs standalone once hosted anywhere.
+// "shared" has no meaning outside the original hosted environment (single local
+// user here) and is accepted but ignored.
+window.storage = (function(){
+  if(!window.indexedDB){
+    console.warn('IndexedDB not available — using in-memory storage. Data will NOT persist between sessions.');
+    window.__downrangeStorageIsMemoryOnly = true;
+    const mem = new Map();
+    return {
+      async get(key){ return mem.has(key) ? {key, value:mem.get(key), shared:false} : null; },
+      async set(key,value){ mem.set(key,value); return {key,value,shared:false}; },
+      async delete(key){ const had = mem.delete(key); return {key, deleted:had, shared:false}; },
+      async list(prefix){
+        let keys = [...mem.keys()];
+        if(prefix) keys = keys.filter(k=>k.startsWith(prefix));
+        return {keys, prefix, shared:false};
+      }
+    };
+  }
+
+  const DB_NAME = 'downrange-db';
+  const STORE = 'kv';
+  let dbPromise = null;
+
+  function getDB(){
+    if(dbPromise) return dbPromise;
+    dbPromise = new Promise((resolve, reject)=>{
+      const req = indexedDB.open(DB_NAME, 1);
+      req.onupgradeneeded = ()=>{ req.result.createObjectStore(STORE); };
+      req.onsuccess = ()=> resolve(req.result);
+      req.onerror = ()=> reject(req.error);
+    });
+    return dbPromise;
+  }
+
+  async function get(key){
+    const db = await getDB();
+    return new Promise((resolve, reject)=>{
+      const tx = db.transaction(STORE, 'readonly');
+      const req = tx.objectStore(STORE).get(key);
+      req.onsuccess = ()=> resolve(req.result === undefined ? null : {key, value:req.result, shared:false});
+      req.onerror = ()=> reject(req.error);
+    });
+  }
+
+  async function set(key, value){
+    const db = await getDB();
+    return new Promise((resolve, reject)=>{
+      const tx = db.transaction(STORE, 'readwrite');
+      tx.objectStore(STORE).put(value, key);
+      tx.oncomplete = ()=> resolve({key, value, shared:false});
+      tx.onerror = ()=> reject(tx.error);
+    });
+  }
+
+  async function del(key){
+    const db = await getDB();
+    return new Promise((resolve, reject)=>{
+      const tx = db.transaction(STORE, 'readwrite');
+      tx.objectStore(STORE).delete(key);
+      tx.oncomplete = ()=> resolve({key, deleted:true, shared:false});
+      tx.onerror = ()=> reject(tx.error);
+    });
+  }
+
+  async function list(prefix){
+    const db = await getDB();
+    return new Promise((resolve, reject)=>{
+      const tx = db.transaction(STORE, 'readonly');
+      const req = tx.objectStore(STORE).getAllKeys();
+      req.onsuccess = ()=>{
+        let keys = req.result;
+        if(prefix) keys = keys.filter(k=> String(k).startsWith(prefix));
+        resolve({keys, prefix, shared:false});
+      };
+      req.onerror = ()=> reject(req.error);
+    });
+  }
+
+  return { get, set, delete: del, list };
+})();
+
+// ================= Service worker registration + update detection =================
+// NOTE: bump CACHE_NAME in sw.js on every deploy so returning users actually get
+// the new version instead of a stale cached copy.
+if('serviceWorker' in navigator){
+  window.addEventListener('load', ()=>{
+    navigator.serviceWorker.register('./sw.js').then(reg=>{
+      reg.addEventListener('updatefound', ()=>{
+        const newWorker = reg.installing;
+        if(!newWorker) return;
+        newWorker.addEventListener('statechange', ()=>{
+          if(newWorker.state === 'installed' && navigator.serviceWorker.controller){
+            document.getElementById('swUpdateBanner').style.display = 'flex';
+          }
+        });
+      });
+    }).catch(err=> console.error('SW registration failed', err));
+  });
+}
+document.getElementById('swUpdateReloadBtn').addEventListener('click', ()=> window.location.reload());
+
+// ================= Tabs =================
+let activeTab = 'setup';
+function switchTab(name){
+  document.querySelectorAll('.tab-btn').forEach(b=> b.classList.toggle('active', b.dataset.tab===name));
+  document.querySelectorAll('.tab-content').forEach(t=> t.style.display = (t.id==='tab-'+name) ? '' : 'none');
+  activeTab = name;
+  if(name === 'analysis'){ renderGroupList(); renderCompareTable(); }
+  if(name === 'setup'){ draw(); }
+}
+document.querySelectorAll('.tab-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=> switchTab(btn.dataset.tab));
+});
+
+// ================= Canvas / view state =================
+const cv = document.getElementById('cv');
+const ctx = cv.getContext('2d');
+
+let img = null;
+let mode = 'shot';
+let scalePerPx = null;
+let calibPoints = [];
+let aimPoint = null;
+let coldBoreShot = null;
+let shots = [];
+let groups = [];
+let editingGroupId = null;
+
+let NATIVE_W = 800, NATIVE_H = 800;
+let viewScale = 1, viewOffsetX = 0, viewOffsetY = 0;
+const MIN_SCALE = 0.15, MAX_SCALE = 12;
+
+function clamp(v,min,max){ return Math.max(min, Math.min(max, v)); }
+function toScreen(p){ return {x: p.x*viewScale + viewOffsetX, y: p.y*viewScale + viewOffsetY}; }
+function toImage(p){ return {x: (p.x - viewOffsetX)/viewScale, y: (p.y - viewOffsetY)/viewScale}; }
+
+function fitView(){
+  const margin = 0.94;
+  const s = Math.min(cv.width/NATIVE_W, cv.height/NATIVE_H) * margin;
+  viewScale = s;
+  viewOffsetX = (cv.width - NATIVE_W*s)/2;
+  viewOffsetY = (cv.height - NATIVE_H*s)/2;
+}
+
+function escapeHtml(s){
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ================= Persistence =================
+let photos = {};
+let currentPhotoId = null;
+
+// The host storage bridge appears not to handle overlapping in-flight get/set calls
+// reliably (observed as "Unexpected response type" when two calls raced). Route every
+// call through this queue so only one request is ever outstanding at a time.
+let __storageChain = Promise.resolve();
+function storageGet(key, shared){
+  const run = ()=> window.storage.get(key, shared);
+  __storageChain = __storageChain.then(run, run);
+  return __storageChain;
+}
+function storageSet(key, value, shared){
+  const run = ()=> window.storage.set(key, value, shared);
+  __storageChain = __storageChain.then(run, run);
+  return __storageChain;
+}
+
+async function loadGroups(){
+  try{
+    const res = await storageGet('downrange:groups:v3', false);
+    if(res && res.value){ groups = JSON.parse(res.value); }
+  }catch(e){ groups = []; }
+  renderGroupList();
+  renderCompareTable();
+}
+async function persistGroups(){
+  try{
+    const res = await storageSet('downrange:groups:v3', JSON.stringify(groups), false);
+    if(!res) showStorageWarning();
+  }catch(e){
+    console.error('storage failed', e);
+    showStorageWarning();
+  }
+}
+async function loadPhotos(){
+  try{
+    const res = await storageGet('downrange:photos:v1', false);
+    if(res && res.value){ photos = JSON.parse(res.value); }
+  }catch(e){ photos = {}; }
+}
+async function persistPhotos(){
+  try{
+    const res = await storageSet('downrange:photos:v1', JSON.stringify(photos), false);
+    if(!res) showStorageWarning();
+  }catch(e){
+    console.error('photo storage failed', e);
+    showStorageWarning();
+  }
+}
+function showStorageWarning(){
+  const el = document.getElementById('storageStatus');
+  if(!el) return;
+  el.textContent = 'Warning: could not save changes (storage limit reached?). Try un-attaching photos from older groups, or export a session backup.';
+  setTimeout(()=>{ el.textContent=''; }, 8000);
+}
+
+// ================= Settings =================
+async function loadSettings(){
+  let settings = {unit:'mm', distanceUnit:'m', velocityUnit:'mps'};
+  try{
+    const res = await storageGet('downrange:settings:v1', false);
+    if(res && res.value) settings = {...settings, ...JSON.parse(res.value)};
+  }catch(e){}
+  document.getElementById('unitSelect').value = settings.unit;
+  document.getElementById('groupDistanceUnit').value = settings.distanceUnit;
+  document.getElementById('groupVelocityUnit').value = settings.velocityUnit;
+  document.getElementById('trendVelUnitSelect').value = settings.velocityUnit;
+  document.getElementById('settingsUnitSelect').value = settings.unit;
+  document.getElementById('settingsDistanceUnitSelect').value = settings.distanceUnit;
+  document.getElementById('settingsVelocityUnitSelect').value = settings.velocityUnit;
+  document.getElementById('calibUnitLabel').textContent = settings.unit;
+  document.getElementById('caliberCustomUnit').textContent = settings.unit;
+}
+async function persistSettings(){
+  const settings = {
+    unit: document.getElementById('settingsUnitSelect').value,
+    distanceUnit: document.getElementById('settingsDistanceUnitSelect').value,
+    velocityUnit: document.getElementById('settingsVelocityUnitSelect').value
+  };
+  try{ await storageSet('downrange:settings:v1', JSON.stringify(settings), false); }
+  catch(e){ console.error('settings storage failed', e); }
+}
+document.getElementById('settingsUnitSelect').addEventListener('change', ()=>{
+  document.getElementById('unitSelect').value = document.getElementById('settingsUnitSelect').value;
+  onUnitSelectChanged();
+  persistSettings();
+});
+document.getElementById('settingsDistanceUnitSelect').addEventListener('change', ()=>{
+  document.getElementById('groupDistanceUnit').value = document.getElementById('settingsDistanceUnitSelect').value;
+  updateCurrentStats();
+  persistSettings();
+});
+document.getElementById('settingsVelocityUnitSelect').addEventListener('change', ()=>{
+  document.getElementById('groupVelocityUnit').value = document.getElementById('settingsVelocityUnitSelect').value;
+  document.getElementById('trendVelUnitSelect').value = document.getElementById('settingsVelocityUnitSelect').value;
+  updateCurrentStats();
+  renderTrendChart();
+  persistSettings();
+});
+
+// ================= Image loading =================
+document.getElementById('loadPhotoLabel').addEventListener('click', (e)=>{
+  if(editingGroupId){
+    e.preventDefault();
+    document.getElementById('calibHint').textContent = 'Finish or cancel editing before loading a new photo.';
+  }
+});
+document.getElementById('fileInput').addEventListener('change', (e)=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  if(!file.type.startsWith('image/')){
+    document.getElementById('calibHint').textContent = 'That file doesn\'t look like an image — please choose a photo.';
+    e.target.value = '';
+    return;
+  }
+  const reader = new FileReader();
+  reader.onerror = ()=>{
+    document.getElementById('calibHint').textContent = 'Could not read that file. Try a different photo.';
+  };
+  reader.onload = (ev)=>{
+    const image = new Image();
+    image.onerror = ()=>{
+      document.getElementById('calibHint').textContent = 'Could not load that image — it may be corrupt. Try a different photo.';
+    };
+    image.onload = ()=>{
+      img = image;
+      NATIVE_W = image.naturalWidth;
+      NATIVE_H = image.naturalHeight;
+      currentPhotoId = null;
+      resetSession(false);
+      fitView();
+      draw();
+      document.getElementById('attachImageRow').style.display = 'flex';
+      updateRotateButtonsEnabled();
+    };
+    image.src = ev.target.result;
+  };
+  reader.readAsDataURL(file);
+});
+
+document.getElementById('blankBtn').addEventListener('click', ()=>{
+  if(editingGroupId) return;
+  img = null;
+  NATIVE_W = 800; NATIVE_H = 800;
+  resetSession(false);
+  fitView();
+  draw();
+  document.getElementById('attachImageRow').style.display = 'none';
+  updateRotateButtonsEnabled();
+});
+
+function updateRotateButtonsEnabled(){
+  const enabled = !!img && !editingGroupId;
+  document.getElementById('rotateLeftBtn').disabled = !enabled;
+  document.getElementById('rotateRightBtn').disabled = !enabled;
+}
+
+// Rotates the loaded photo 90° and re-projects every marked point (shots, aim,
+// cold-bore, in-progress calibration clicks) into the rotated coordinate frame so
+// nothing shifts relative to the actual target. Calibration scale is unaffected —
+// rotation doesn't change the pixel-to-real-world ratio.
+function rotatePhoto(direction){
+  if(!img || editingGroupId) return;
+  const srcW = NATIVE_W, srcH = NATIVE_H;
+  const degrees = direction === 1 ? 90 : 270;
+
+  const off = document.createElement('canvas');
+  off.width = srcH; off.height = srcW;
+  const octx = off.getContext('2d');
+  octx.translate(off.width/2, off.height/2);
+  octx.rotate(degrees * Math.PI/180);
+  octx.drawImage(img, -srcW/2, -srcH/2, srcW, srcH);
+
+  const transformPoint = (p)=>{
+    return degrees === 90
+      ? { x: srcH - p.y, y: p.x }
+      : { x: p.y, y: srcW - p.x };
+  };
+
+  shots = shots.map(transformPoint);
+  if(aimPoint) aimPoint = transformPoint(aimPoint);
+  if(coldBoreShot) coldBoreShot = transformPoint(coldBoreShot);
+  calibPoints = calibPoints.map(transformPoint);
+
+  img = off;
+  NATIVE_W = off.width; NATIVE_H = off.height;
+
+  fitView();
+  draw();
+  updateCurrentStats();
+}
+document.getElementById('rotateLeftBtn').addEventListener('click', ()=> rotatePhoto(-1));
+document.getElementById('rotateRightBtn').addEventListener('click', ()=> rotatePhoto(1));
+
+document.getElementById('newTargetBtn').addEventListener('click', ()=>{
+  shots = []; aimPoint = null; coldBoreShot = null;
+  draw();
+  updateCurrentStats();
+});
+
+function resetSession(keepScale){
+  calibPoints = [];
+  aimPoint = null;
+  coldBoreShot = null;
+  shots = [];
+  if(!keepScale) scalePerPx = null;
+  showCalibInput(false);
+  updateCalibHint();
+  updateCurrentStats();
+}
+
+// ================= Mode switching =================
+document.querySelectorAll('.mode-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('.mode-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    mode = btn.dataset.mode;
+    if(mode === 'calibrate') calibPoints = [];
+    showCalibInput(false);
+    cv.style.cursor = mode === 'pan' ? 'grab' : 'crosshair';
+    updateCalibHint();
+  });
+});
+
+function updateCalibHint(){
+  const hint = document.getElementById('calibHint');
+  if(mode === 'calibrate'){
+    hint.textContent = scalePerPx
+      ? `Scale set: 1 px = ${scalePerPx.value.toFixed(5)} ${scalePerPx.unit}. Click two more points to recalibrate.`
+      : 'Click two points a known distance apart. A field will appear above the canvas to enter that distance.';
+  } else if(mode === 'aim'){
+    hint.textContent = 'Click the point of aim (bullseye center / zero point).';
+  } else if(mode === 'coldbore'){
+    hint.textContent = 'Click to mark the cold-bore (first) shot — shown separately, excluded from group stats.';
+  } else if(mode === 'pan'){
+    hint.textContent = 'Drag to pan. Scroll wheel, pinch, or +/- buttons to zoom.';
+  } else {
+    hint.textContent = 'Click each bullet hole to mark a shot. Click an existing marker to remove it.';
+  }
+}
+updateCalibHint();
+
+// ================= Coordinate helpers =================
+function getCanvasCoords(evt){
+  const rect = cv.getBoundingClientRect();
+  const scaleX = cv.width / rect.width;
+  const scaleY = cv.height / rect.height;
+  const clientX = evt.clientX;
+  const clientY = evt.clientY;
+  return { x:(clientX-rect.left)*scaleX, y:(clientY-rect.top)*scaleY };
+}
+function dist(a,b){ return Math.hypot(a.x-b.x, a.y-b.y); }
+
+// ================= Marking (click) =================
+cv.addEventListener('click', (evt)=>{
+  if(mode === 'pan' || suppressNextClick) { suppressNextClick=false; return; }
+  const p = toImage(getCanvasCoords(evt));
+
+  if(mode === 'calibrate'){
+    if(calibPoints.length >= 2){ calibPoints = [p]; showCalibInput(false); }
+    else{
+      calibPoints.push(p);
+      if(calibPoints.length === 2) showCalibInput(true);
+    }
+  } else if(mode === 'aim'){
+    aimPoint = p;
+  } else if(mode === 'coldbore'){
+    coldBoreShot = p;
+  } else if(mode === 'shot'){
+    const hitRadius = 10 / viewScale;
+    const idx = shots.findIndex(s => dist(s,p) < hitRadius);
+    if(idx >= 0) shots.splice(idx,1);
+    else shots.push(p);
+  }
+  draw();
+  updateCurrentStats();
+});
+
+function showCalibInput(show){
+  const row = document.getElementById('calibInputRow');
+  row.style.display = show ? 'flex' : 'none';
+  document.getElementById('calibUnitLabel').textContent = document.getElementById('unitSelect').value;
+  if(show){
+    document.getElementById('calibDistInput').value = '';
+    document.getElementById('calibDistInput').focus();
+  }
+}
+function confirmCalibration(){
+  if(calibPoints.length !== 2) return;
+  const raw = document.getElementById('calibDistInput').value.replace(',', '.');
+  const num = parseFloat(raw);
+  if(!isNaN(num) && num > 0){
+    const pxDist = dist(calibPoints[0], calibPoints[1]);
+    scalePerPx = { value: num/pxDist, unit: document.getElementById('unitSelect').value };
+  }
+  calibPoints = [];
+  showCalibInput(false);
+  updateCalibHint();
+  draw();
+  updateCurrentStats();
+}
+document.getElementById('calibSetBtn').addEventListener('click', confirmCalibration);
+document.getElementById('calibDistInput').addEventListener('keydown', (e)=>{ if(e.key==='Enter') confirmCalibration(); });
+
+// ================= Undo / clear =================
+document.getElementById('undoBtn').addEventListener('click', ()=>{
+  if(mode==='shot' && shots.length) shots.pop();
+  else if(mode==='aim') aimPoint = null;
+  else if(mode==='coldbore') coldBoreShot = null;
+  else if(mode==='calibrate'){ calibPoints.pop(); showCalibInput(false); }
+  draw(); updateCurrentStats();
+});
+document.getElementById('clearBtn').addEventListener('click', ()=>{ shots=[]; draw(); updateCurrentStats(); });
+
+// ================= Zoom, Pan & Pinch =================
+function zoomBy(factor){
+  const center = {x: cv.width/2, y: cv.height/2};
+  const before = toImage(center);
+  viewScale = clamp(viewScale*factor, MIN_SCALE, MAX_SCALE);
+  viewOffsetX = center.x - before.x*viewScale;
+  viewOffsetY = center.y - before.y*viewScale;
+  draw();
+}
+document.getElementById('zoomInBtn').addEventListener('click', ()=>zoomBy(1.25));
+document.getElementById('zoomOutBtn').addEventListener('click', ()=>zoomBy(0.8));
+document.getElementById('zoomResetBtn').addEventListener('click', ()=>{ fitView(); draw(); });
+
+cv.addEventListener('wheel', (e)=>{
+  e.preventDefault();
+  const canvasPt = getCanvasCoords(e);
+  const before = toImage(canvasPt);
+  const factor = e.deltaY < 0 ? 1.15 : 1/1.15;
+  viewScale = clamp(viewScale*factor, MIN_SCALE, MAX_SCALE);
+  viewOffsetX = canvasPt.x - before.x*viewScale;
+  viewOffsetY = canvasPt.y - before.y*viewScale;
+  draw();
+}, {passive:false});
+
+let isPanning=false, panStart=null, panOffsetStart=null;
+let activePointers = new Map();
+let pinchStartDist=null, pinchStartScale=null, pinchStartCenterImg=null;
+let suppressNextClick = false;
+
+function pointersArray(){ return [...activePointers.values()]; }
+
+cv.addEventListener('pointerdown', (e)=>{
+  cv.setPointerCapture(e.pointerId);
+  activePointers.set(e.pointerId, getCanvasCoords(e));
+
+  if(activePointers.size === 2){
+    isPanning = false;
+    const pts = pointersArray();
+    pinchStartDist = dist(pts[0], pts[1]);
+    pinchStartScale = viewScale;
+    const centerCanvas = {x:(pts[0].x+pts[1].x)/2, y:(pts[0].y+pts[1].y)/2};
+    pinchStartCenterImg = toImage(centerCanvas);
+    suppressNextClick = true;
+  } else if(activePointers.size === 1 && mode === 'pan'){
+    isPanning = true;
+    panStart = getCanvasCoords(e);
+    panOffsetStart = {x:viewOffsetX, y:viewOffsetY};
+    cv.style.cursor = 'grabbing';
+  }
+});
+
+cv.addEventListener('pointermove', (e)=>{
+  if(!activePointers.has(e.pointerId)) return;
+  activePointers.set(e.pointerId, getCanvasCoords(e));
+
+  if(activePointers.size === 2 && pinchStartDist){
+    const pts = pointersArray();
+    const newDist = dist(pts[0], pts[1]);
+    const factor = newDist / pinchStartDist;
+    viewScale = clamp(pinchStartScale*factor, MIN_SCALE, MAX_SCALE);
+    const centerCanvas = {x:(pts[0].x+pts[1].x)/2, y:(pts[0].y+pts[1].y)/2};
+    viewOffsetX = centerCanvas.x - pinchStartCenterImg.x*viewScale;
+    viewOffsetY = centerCanvas.y - pinchStartCenterImg.y*viewScale;
+    draw();
+    return;
+  }
+  if(isPanning){
+    const p = getCanvasCoords(e);
+    viewOffsetX = panOffsetStart.x + (p.x - panStart.x);
+    viewOffsetY = panOffsetStart.y + (p.y - panStart.y);
+    draw();
+  }
+});
+
+function endPointer(e){
+  activePointers.delete(e.pointerId);
+  if(activePointers.size < 2){ pinchStartDist = null; }
+  if(activePointers.size === 0){
+    isPanning = false;
+    cv.style.cursor = mode==='pan' ? 'grab' : 'crosshair';
+    setTimeout(()=>{ suppressNextClick = false; }, 0);
+  }
+}
+cv.addEventListener('pointerup', endPointer);
+cv.addEventListener('pointercancel', endPointer);
+cv.addEventListener('pointerleave', endPointer);
+
+// ================= Drawing =================
+function drawBlankGrid(){
+  ctx.fillStyle = '#EDE7D9';
+  ctx.fillRect(0,0,NATIVE_W,NATIVE_H);
+  ctx.strokeStyle = 'rgba(0,0,0,0.12)';
+  ctx.lineWidth = 1/viewScale;
+  const step = NATIVE_W/16;
+  for(let x=0;x<=NATIVE_W;x+=step){ ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,NATIVE_H); ctx.stroke(); }
+  for(let y=0;y<=NATIVE_H;y+=step){ ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(NATIVE_W,y); ctx.stroke(); }
+  ctx.strokeStyle = '#B8793A'; ctx.lineWidth = 2/viewScale;
+  ctx.beginPath(); ctx.arc(NATIVE_W/2, NATIVE_H/2, NATIVE_W*0.28, 0, Math.PI*2); ctx.stroke();
+}
+
+function draw(){
+  ctx.clearRect(0,0,cv.width,cv.height);
+  ctx.save();
+  ctx.translate(viewOffsetX, viewOffsetY);
+  ctx.scale(viewScale, viewScale);
+  if(img) ctx.drawImage(img, 0, 0, NATIVE_W, NATIVE_H);
+  else drawBlankGrid();
+  ctx.restore();
+
+  calibPoints.forEach(p=> drawMarker(toScreen(p), '#3E7CB1'));
+  if(calibPoints.length === 2){
+    const a = toScreen(calibPoints[0]), b = toScreen(calibPoints[1]);
+    ctx.strokeStyle = '#3E7CB1'; ctx.lineWidth=1.5; ctx.setLineDash([4,4]);
+    ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke(); ctx.setLineDash([]);
+  }
+
+  if(aimPoint) drawCrosshair(toScreen(aimPoint), '#3E7CB1');
+  if(coldBoreShot) drawDiamond(toScreen(coldBoreShot), '#E6C229', 8);
+
+  let holeRadiusPx = null;
+  const caliberMM = getCaliberMM();
+  if(caliberMM && scalePerPx){
+    const caliberInUnit = convertLinear(caliberMM, 'mm', scalePerPx.unit);
+    const caliberPx = caliberInUnit / scalePerPx.value;
+    holeRadiusPx = (caliberPx/2) * viewScale;
+  }
+  shots.forEach(s=> drawDot(toScreen(s), '#D64B2A', holeRadiusPx));
+
+  if(shots.length >= 2){
+    const c = centroid(shots);
+    const distances = shots.map(s=>dist(s,c));
+    const mr = average(distances);
+    const cep = median(distances);
+    const cScreen = toScreen(c);
+    drawDashedCircle(cScreen, mr*viewScale, '#D8A15C');
+    drawDashedCircle(cScreen, cep*viewScale, '#F1EEE4');
+    drawCrosshair(cScreen, '#D8A15C', 7);
+
+    if(aimPoint){
+      const aScreen = toScreen(aimPoint);
+      ctx.strokeStyle = 'rgba(241,238,228,0.5)'; ctx.setLineDash([4,4]);
+      ctx.beginPath(); ctx.moveTo(aScreen.x,aScreen.y); ctx.lineTo(cScreen.x,cScreen.y); ctx.stroke(); ctx.setLineDash([]);
+    }
+
+    let maxD=-1, pair=null;
+    for(let i=0;i<shots.length;i++) for(let j=i+1;j<shots.length;j++){
+      const d = dist(shots[i],shots[j]);
+      if(d>maxD){ maxD=d; pair=[shots[i],shots[j]]; }
+    }
+    if(pair){
+      const pa = toScreen(pair[0]), pb = toScreen(pair[1]);
+      ctx.strokeStyle = 'rgba(216,161,92,0.9)'; ctx.lineWidth=1.5;
+      ctx.beginPath(); ctx.moveTo(pa.x,pa.y); ctx.lineTo(pb.x,pb.y); ctx.stroke();
+    }
+  }
+}
+
+function drawDot(p,color,r){
+  const radius = (r && r>3) ? r : 6;
+  ctx.fillStyle=color; ctx.beginPath(); ctx.arc(p.x,p.y,radius,0,Math.PI*2); ctx.fill();
+  ctx.strokeStyle='rgba(0,0,0,0.4)'; ctx.lineWidth=1; ctx.stroke();
+}
+function drawCrosshair(p,color,r=10){
+  ctx.strokeStyle=color; ctx.lineWidth=2;
+  ctx.beginPath(); ctx.moveTo(p.x-r,p.y); ctx.lineTo(p.x+r,p.y); ctx.moveTo(p.x,p.y-r); ctx.lineTo(p.x,p.y+r); ctx.stroke();
+  ctx.beginPath(); ctx.arc(p.x,p.y,r*0.5,0,Math.PI*2); ctx.stroke();
+}
+function drawMarker(p,color){
+  ctx.strokeStyle=color; ctx.lineWidth=2; const r=7;
+  ctx.beginPath(); ctx.moveTo(p.x-r,p.y-r); ctx.lineTo(p.x+r,p.y+r); ctx.moveTo(p.x-r,p.y+r); ctx.lineTo(p.x+r,p.y-r); ctx.stroke();
+}
+function drawDiamond(p,color,r){
+  ctx.strokeStyle=color; ctx.fillStyle=color; ctx.lineWidth=2;
+  ctx.beginPath();
+  ctx.moveTo(p.x,p.y-r); ctx.lineTo(p.x+r,p.y); ctx.lineTo(p.x,p.y+r); ctx.lineTo(p.x-r,p.y); ctx.closePath();
+  ctx.stroke();
+}
+function drawDashedCircle(c,r,color){
+  ctx.strokeStyle=color; ctx.lineWidth=1.5; ctx.setLineDash([5,5]);
+  ctx.beginPath(); ctx.arc(c.x,c.y,Math.max(r,0),0,Math.PI*2); ctx.stroke(); ctx.setLineDash([]);
+}
+
+// ---- Standalone drawing helpers for the read-only Summary/Trend canvases ----
+function drawDotOn(c,p,color,radius){
+  c.fillStyle=color; c.beginPath(); c.arc(p.x,p.y,radius,0,Math.PI*2); c.fill();
+  c.strokeStyle='rgba(0,0,0,0.4)'; c.lineWidth=1; c.stroke();
+}
+function drawCrosshairOn(c,p,color,r){
+  c.strokeStyle=color; c.lineWidth=2;
+  c.beginPath(); c.moveTo(p.x-r,p.y); c.lineTo(p.x+r,p.y); c.moveTo(p.x,p.y-r); c.lineTo(p.x,p.y+r); c.stroke();
+  c.beginPath(); c.arc(p.x,p.y,r*0.5,0,Math.PI*2); c.stroke();
+}
+function drawDashedCircleOn(c,p,r,color){
+  c.strokeStyle=color; c.lineWidth=1.5; c.setLineDash([5,5]);
+  c.beginPath(); c.arc(p.x,p.y,Math.max(r,0),0,Math.PI*2); c.stroke(); c.setLineDash([]);
+}
+function drawHollowCircleOn(c,p,r,color){
+  c.strokeStyle=color; c.lineWidth=2.5;
+  c.beginPath(); c.arc(p.x,p.y,Math.max(r,0),0,Math.PI*2); c.stroke();
+}
+function drawSimpleGridOn(c,W,H,divisions){
+  c.strokeStyle='rgba(0,0,0,0.08)'; c.lineWidth=1;
+  const stepX=W/divisions, stepY=H/divisions;
+  for(let x=0;x<=W;x+=stepX){ c.beginPath(); c.moveTo(x,0); c.lineTo(x,H); c.stroke(); }
+  for(let y=0;y<=H;y+=stepY){ c.beginPath(); c.moveTo(0,y); c.lineTo(W,y); c.stroke(); }
+}
+
+// Fit an arbitrary set of real-unit points into a canvas of size W x H, centered, with padding.
+function computeAutoFitTransform(pts, W, H, marginFrac){
+  const xs=pts.map(p=>p.x), ys=pts.map(p=>p.y);
+  let minX=Math.min(...xs), maxX=Math.max(...xs), minY=Math.min(...ys), maxY=Math.max(...ys);
+  let spanX=maxX-minX, spanY=maxY-minY;
+  if(spanX<1e-6) spanX=1;
+  if(spanY<1e-6) spanY=1;
+  const padX=spanX*marginFrac, padY=spanY*marginFrac;
+  minX-=padX; maxX+=padX; minY-=padY; maxY+=padY;
+  spanX=maxX-minX; spanY=maxY-minY;
+  const scale = Math.min(W/spanX, H/spanY);
+  const offsetX = (W - spanX*scale)/2 - minX*scale;
+  const offsetY = (H - spanY*scale)/2 - minY*scale;
+  return {scale, offsetX, offsetY};
+}
+
+function capturePhotoBankEntry(){
+  if(!img) return null;
+  const maxDim = 700;
+  const s = Math.min(1, maxDim/Math.max(NATIVE_W, NATIVE_H));
+  const w = Math.max(1, Math.round(NATIVE_W*s)), h = Math.max(1, Math.round(NATIVE_H*s));
+  const off = document.createElement('canvas');
+  off.width = w; off.height = h;
+  off.getContext('2d').drawImage(img, 0, 0, w, h);
+  return { dataURL: off.toDataURL('image/jpeg', 0.65), w, h, origW: NATIVE_W, origH: NATIVE_H };
+}
+function getOrCreatePhotoId(){
+  if(!img) return null;
+  if(currentPhotoId && photos[currentPhotoId]) return currentPhotoId;
+  const entry = capturePhotoBankEntry();
+  if(!entry) return null;
+  const id = 'photo_' + Date.now() + '_' + Math.random().toString(36).slice(2,7);
+  photos[id] = entry;
+  currentPhotoId = id;
+  return id;
+}
+function pruneUnusedPhotos(){
+  const used = new Set(groups.filter(g=>g.image).map(g=>g.image.photoId));
+  Object.keys(photos).forEach(id=>{ if(!used.has(id)) delete photos[id]; });
+}
+
+// ================= Core math =================
+function centroid(pts){ const n=pts.length; return {x:pts.reduce((a,p)=>a+p.x,0)/n, y:pts.reduce((a,p)=>a+p.y,0)/n}; }
+function average(arr){ return arr.reduce((a,b)=>a+b,0)/arr.length; }
+function stddev(arr){
+  const m = average(arr);
+  const v = arr.reduce((a,x)=>a+(x-m)*(x-m),0) / (arr.length>1 ? arr.length-1 : 1);
+  return Math.sqrt(v);
+}
+function median(arr){
+  const s=[...arr].sort((a,b)=>a-b); const mid=Math.floor(s.length/2);
+  return s.length%2 ? s[mid] : (s[mid-1]+s[mid])/2;
+}
+function fmt(v,digits=3){ return (v===null||v===undefined||isNaN(v)) ? '—' : v.toFixed(digits); }
+
+const UNIT_TO_MM = { mm:1, cm:10, in:25.4 };
+const DIST_UNIT_TO_MM = { m:1000, yd:914.4, ft:304.8 };
+const FPS_TO_MPS = 0.3048;
+
+function convertLinear(value, fromUnit, toUnit){
+  if(fromUnit===toUnit) return value;
+  return value * UNIT_TO_MM[fromUnit] / UNIT_TO_MM[toUnit];
+}
+function distanceToUnit(distVal, distUnit, targetUnit){
+  if(!distVal) return null;
+  const mm = distVal * DIST_UNIT_TO_MM[distUnit];
+  return mm / UNIT_TO_MM[targetUnit];
+}
+function convertVelocity(value, fromUnit, toUnit){
+  if(fromUnit===toUnit) return value;
+  return fromUnit==='fps' ? value*FPS_TO_MPS : value/FPS_TO_MPS;
+}
+
+function getCaliberMM(){
+  const sel = document.getElementById('caliberSelect').value;
+  if(sel === 'none') return null;
+  if(sel === 'custom'){
+    const raw = document.getElementById('caliberCustomInput').value.replace(',', '.');
+    const num = parseFloat(raw);
+    if(isNaN(num) || num<=0) return null;
+    const unit = document.getElementById('unitSelect').value;
+    return num * UNIT_TO_MM[unit];
+  }
+  return parseFloat(sel);
+}
+document.getElementById('caliberSelect').addEventListener('change', ()=>{
+  const isCustom = document.getElementById('caliberSelect').value === 'custom';
+  document.getElementById('caliberCustomRow').style.display = isCustom ? 'flex' : 'none';
+  document.getElementById('caliberCustomUnit').textContent = document.getElementById('unitSelect').value;
+  draw();
+  updateCurrentStats();
+});
+document.getElementById('caliberCustomInput').addEventListener('input', ()=>{ draw(); updateCurrentStats(); });
+
+function groupCaliberLinear(g){
+  return g.caliberMM ? convertLinear(g.caliberMM, 'mm', g.unit) : null;
+}
+
+function setCaliberSelectFromMM(mm){
+  const select = document.getElementById('caliberSelect');
+  if(!mm){
+    select.value = 'none';
+    document.getElementById('caliberCustomRow').style.display = 'none';
+    return;
+  }
+  const preset = [...select.options].find(o => o.value!=='none' && o.value!=='custom' && Math.abs(parseFloat(o.value)-mm) < 0.001);
+  if(preset){
+    select.value = preset.value;
+    document.getElementById('caliberCustomRow').style.display = 'none';
+  } else {
+    select.value = 'custom';
+    document.getElementById('caliberCustomRow').style.display = 'flex';
+    const unit = document.getElementById('unitSelect').value;
+    document.getElementById('caliberCustomInput').value = (mm/UNIT_TO_MM[unit]).toFixed(3);
+    document.getElementById('caliberCustomUnit').textContent = unit;
+  }
+}
+
+function setEditModeUI(isEditing, name, usedPhoto){
+  const banner = document.getElementById('editBanner');
+  const saveBtn = document.getElementById('saveGroupBtn');
+  const cancelBtn = document.getElementById('cancelEditBtn');
+  const calibBtn = document.querySelector('.mode-btn[data-mode="calibrate"]');
+  const blankBtn = document.getElementById('blankBtn');
+  if(isEditing){
+    banner.style.display = 'block';
+    banner.textContent = usedPhoto
+      ? `Editing "${name}" on its original photo. Add/remove shots, adjust fields, then Update.`
+      : `Editing "${name}" on a reconstructed grid (no original photo was attached). Add/remove shots, adjust fields, then Update.`;
+    saveBtn.textContent = 'UPDATE GROUP';
+    cancelBtn.style.display = 'inline-block';
+    calibBtn.disabled = true;
+    blankBtn.disabled = true;
+    updateRotateButtonsEnabled();
+  } else {
+    banner.style.display = 'none';
+    saveBtn.textContent = 'SAVE GROUP';
+    cancelBtn.style.display = 'none';
+    calibBtn.disabled = false;
+    blankBtn.disabled = false;
+    updateRotateButtonsEnabled();
+  }
+}
+
+function loadImageFromDataURL(dataURL){
+  return new Promise((resolve, reject)=>{
+    const image = new Image();
+    image.onload = ()=> resolve(image);
+    image.onerror = reject;
+    image.src = dataURL;
+  });
+}
+
+async function startEditGroup(g){
+  editingGroupId = g.id;
+  currentPhotoId = null;
+  calibPoints = [];
+
+  let photo = g.image ? photos[g.image.photoId] : null;
+  let imageObj = null;
+  if(photo){
+    try{ imageObj = await loadImageFromDataURL(photo.dataURL); }
+    catch(e){ console.error('Failed to load attached photo for edit, falling back to grid', e); photo = null; }
+  }
+
+  let usedPhoto = false;
+  if(photo && imageObj){
+    // Use the actual attached photo as the background, positioning shots via the
+    // calibration that was stored with this group — no reconstruction needed.
+    usedPhoto = true;
+    img = imageObj;
+    NATIVE_W = photo.w; NATIVE_H = photo.h;
+    const thumbPxPerUnit = g.image.pxPerUnit * (photo.w / photo.origW);
+    scalePerPx = { value: 1/thumbPxPerUnit, unit: g.unit };
+    shots = g.shotsReal.map(p => ({x: p.x*thumbPxPerUnit, y: p.y*thumbPxPerUnit}));
+    aimPoint = g.aimReal ? {x: g.aimReal.x*thumbPxPerUnit, y: g.aimReal.y*thumbPxPerUnit} : null;
+    coldBoreShot = g.coldBoreReal ? {x: g.coldBoreReal.x*thumbPxPerUnit, y: g.coldBoreReal.y*thumbPxPerUnit} : null;
+  } else {
+    // No photo was attached to this group — reconstruct on an auto-fit synthetic grid.
+    img = null;
+    const allPts = g.aimReal ? [...g.shotsReal, g.aimReal] : g.shotsReal.slice();
+    if(g.coldBoreReal) allPts.push(g.coldBoreReal);
+    const xs = allPts.length ? allPts.map(p=>p.x) : [0];
+    const ys = allPts.length ? allPts.map(p=>p.y) : [0];
+    const minX=Math.min(...xs), maxX=Math.max(...xs), minY=Math.min(...ys), maxY=Math.max(...ys);
+    let spanX = maxX-minX, spanY = maxY-minY;
+    if(spanX < 1e-6) spanX = 1;
+    if(spanY < 1e-6) spanY = 1;
+    const maxSpan = Math.max(spanX, spanY);
+
+    NATIVE_W = 800; NATIVE_H = 800;
+    const k = (NATIVE_W*0.55) / maxSpan;
+    const originX = NATIVE_W/2 - ((minX+maxX)/2)*k;
+    const originY = NATIVE_H/2 - ((minY+maxY)/2)*k;
+
+    scalePerPx = { value: 1/k, unit: g.unit };
+    shots = g.shotsReal.map(p => ({x: originX + p.x*k, y: originY + p.y*k}));
+    aimPoint = g.aimReal ? {x: originX + g.aimReal.x*k, y: originY + g.aimReal.y*k} : null;
+    coldBoreShot = g.coldBoreReal ? {x: originX + g.coldBoreReal.x*k, y: originY + g.coldBoreReal.y*k} : null;
+  }
+
+  document.getElementById('unitSelect').value = g.unit;
+  document.getElementById('groupNameInput').value = g.name;
+  document.getElementById('groupTagsInput').value = (g.tags||[]).join(', ');
+  document.getElementById('groupDistanceValue').value = g.distance ?? '';
+  document.getElementById('groupDistanceUnit').value = g.distanceUnit || 'm';
+  setCaliberSelectFromMM(g.caliberMM);
+  document.getElementById('groupAmmoInput').value = g.ammo || '';
+  document.getElementById('groupChargeInput').value = g.charge ?? '';
+  document.getElementById('groupSeatingInput').value = g.seating ?? '';
+  document.getElementById('groupSeatingUnit').value = g.seatingUnit || 'mm';
+  document.getElementById('groupNotesInput').value = g.notes || '';
+  document.getElementById('groupVelocitiesInput').value = (g.velocities||[]).join(' ');
+  document.getElementById('groupVelocityUnit').value = g.velocityUnit || 'fps';
+  document.getElementById('groupTempInput').value = g.temp ?? '';
+  document.getElementById('groupTempUnit').value = g.tempUnit || 'C';
+  document.getElementById('groupHumidityInput').value = g.humidity ?? '';
+  document.getElementById('groupWindInput').value = g.wind || '';
+  document.getElementById('includeZeroCheckInput').checked = g.includeInZeroCheck !== false;
+
+  document.querySelectorAll('.mode-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelector('.mode-btn[data-mode="shot"]').classList.add('active');
+  mode = 'shot';
+  cv.style.cursor = 'crosshair';
+
+  switchTab('setup');
+  fitView();
+  draw();
+  updateCurrentStats();
+  updateCalibHint();
+  setEditModeUI(true, g.name, usedPhoto);
+  document.getElementById('canvasHolder').scrollIntoView({behavior:'smooth', block:'center'});
+}
+
+function clearCurrentGroupFields(){
+  document.getElementById('groupNameInput').value = '';
+  document.getElementById('groupTagsInput').value = '';
+  document.getElementById('groupAmmoInput').value = '';
+  document.getElementById('groupChargeInput').value = '';
+  document.getElementById('groupSeatingInput').value = '';
+  document.getElementById('groupNotesInput').value = '';
+  document.getElementById('groupVelocitiesInput').value = '';
+  document.getElementById('groupTempInput').value = '';
+  document.getElementById('groupHumidityInput').value = '';
+  document.getElementById('groupWindInput').value = '';
+  document.getElementById('caliberSelect').value = 'none';
+  document.getElementById('caliberCustomRow').style.display = 'none';
+  document.getElementById('includeZeroCheckInput').checked = true;
+}
+
+function cancelEdit(){
+  editingGroupId = null;
+  img = null;
+  NATIVE_W = 800; NATIVE_H = 800;
+  resetSession(false);
+  clearCurrentGroupFields();
+  document.getElementById('groupDistanceValue').value = '';
+  document.getElementById('attachImageRow').style.display = 'none';
+  setEditModeUI(false);
+  fitView();
+  draw();
+  updateCurrentStats();
+}
+document.getElementById('cancelEditBtn').addEventListener('click', cancelEdit);
+
+// ---- Velocity ----
+function parseVelocities(str){
+  return String(str||'').split(/[,\s]+/).map(s=>parseFloat(s)).filter(n=>!isNaN(n));
+}
+function computeVelocityStats(velocities){
+  if(!velocities || velocities.length<1) return null;
+  const avg = average(velocities);
+  const sd = velocities.length>1 ? stddev(velocities) : null;
+  const es = velocities.length>1 ? Math.max(...velocities)-Math.min(...velocities) : null;
+  return {avg, sd, es, n:velocities.length};
+}
+function renderVelocityBlock(velocities, unit){
+  const v = computeVelocityStats(velocities);
+  if(!v) return '';
+  const u = unit === 'mps' ? 'm/s' : 'fps';
+  return `<div class="section-title" style="margin-top:12px; margin-bottom:8px; font-size:11px;">VELOCITY</div>
+    <table class="stats-table">
+      <tr><td>Shots (v)</td><td>${v.n}</td></tr>
+      <tr><td>Average</td><td>${fmt(v.avg,0)} ${u}</td></tr>
+      <tr><td>Extreme spread</td><td>${v.es!==null?fmt(v.es,0):'—'} ${u}</td></tr>
+      <tr><td>Standard deviation</td><td>${v.sd!==null?fmt(v.sd,1):'—'} ${u}</td></tr>
+    </table>`;
+}
+
+// ---- Tags ----
+function parseTags(str){
+  return String(str||'').split(',').map(s=>s.trim()).filter(Boolean);
+}
+
+// ---- Cold-bore shot (informational only, never in main stats) ----
+function renderColdBoreBlock(coldBoreReal, aimReal, shotsRealArr, unit){
+  if(!coldBoreReal) return '';
+  let rows = '';
+  if(aimReal){
+    rows += `<tr><td>Distance from POA</td><td>${fmt(dist(coldBoreReal, aimReal))} ${unit}</td></tr>`;
+  }
+  if(shotsRealArr && shotsRealArr.length){
+    const c = centroid(shotsRealArr);
+    rows += `<tr><td>Distance from group center</td><td>${fmt(dist(coldBoreReal, c))} ${unit}</td></tr>`;
+  }
+  if(!rows) return '';
+  return `<div class="section-title" style="margin-top:12px; margin-bottom:8px; font-size:11px;">COLD-BORE SHOT <span style="font-weight:400; color:var(--muted); text-transform:none;">(informational, excluded from group stats)</span></div>
+    <table class="stats-table">${rows}</table>`;
+}
+
+function renderCompositeBreakdown(g){
+  if(g.type !== 'composite' || !g.aimReal) return '';
+  const bySource = {};
+  g.shotsReal.forEach(p=>{
+    const key = p.source || 'Unknown';
+    (bySource[key] = bySource[key] || []).push(p);
+  });
+  const sourceKeys = Object.keys(bySource);
+  if(sourceKeys.length < 2) return '';
+  const rows = sourceKeys.map((key,i)=>{
+    const pts = bySource[key];
+    const c = centroid(pts);
+    const windage = c.x - g.aimReal.x;
+    const elevation = -(c.y - g.aimReal.y);
+    const offset = Math.hypot(windage, elevation);
+    const s = fullGroupStats(pts, null, null, null);
+    const color = PALETTE[i % PALETTE.length];
+    return `<tr>
+      <td><span style="display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:6px; background:${color};"></span>${escapeHtml(key)}</td>
+      <td>${pts.length}</td>
+      <td>${fmt(offset)} ${g.unit}</td>
+      <td>${s.es!==null?fmt(s.es):'—'} ${g.unit}</td>
+      <td>${s.mr!==null?fmt(s.mr):'—'} ${g.unit}</td>
+    </tr>`;
+  }).join('');
+  return `<div class="section-title" style="margin-top:12px; margin-bottom:8px; font-size:11px;">PER-LOAD BREAKDOWN (vs POA)</div>
+    <table class="stats-table">
+      <thead><tr><th>Source group</th><th>N</th><th>Offset from POA</th><th>ES</th><th>MR</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+    <div class="hint" style="margin-top:6px;">Each source group's own center-of-group offset from the shared point of aim, alongside its own precision — compare loads on accuracy and precision at once.</div>`;
+}
+
+// Full metrics for a set of real-unit points.
+function fullGroupStats(pts, aim, distanceLinear, caliberLinear){
+  const n = pts.length;
+  if(n === 0) return {n:0};
+  const c = centroid(pts);
+  const xs = pts.map(p=>p.x), ys = pts.map(p=>p.y);
+  const width  = n>1 ? Math.max(...xs)-Math.min(...xs) : null;
+  const height = n>1 ? Math.max(...ys)-Math.min(...ys) : null;
+  const sdX = n>1 ? stddev(xs) : null;
+  const sdY = n>1 ? stddev(ys) : null;
+  const dispersion = (sdX!==null && sdY!==null) ? (sdX+sdY)/2 : null;
+  const avgDispX = average(xs.map(x=>Math.abs(x-c.x)));
+  const avgDispY = average(ys.map(y=>Math.abs(y-c.y)));
+  const radial = pts.map(p=>dist(p,c));
+
+  let es = null;
+  if(n>1){
+    let maxD=0;
+    for(let i=0;i<n;i++) for(let j=i+1;j<n;j++) maxD=Math.max(maxD, dist(pts[i],pts[j]));
+    es = maxD;
+  }
+  const edgeToEdge = (es !== null && caliberLinear) ? es + caliberLinear : null;
+  const mr = average(radial);
+  const cepMeasured = n>1 ? median(radial) : null;
+  const cepCalc = (sdX!==null && sdY!==null) ? 0.5887*(sdX+sdY) : null;
+
+  let windage=null, elevation=null, offset=null;
+  if(aim){
+    windage = c.x - aim.x;
+    elevation = -(c.y - aim.y);
+    offset = Math.hypot(windage, elevation);
+  }
+
+  function ang(v){
+    if(v===null || v===undefined || !distanceLinear) return {moa:null, mil:null};
+    const r = v/distanceLinear;
+    return {moa:r*3437.746, mil:r*1000};
+  }
+
+  return {
+    n, es, edgeToEdge, mr, width, height, sdX, sdY, dispersion, avgDispX, avgDispY, cepMeasured, cepCalc,
+    windage, elevation, offset,
+    ang: {
+      es:ang(es), edgeToEdge:ang(edgeToEdge), mr:ang(mr), width:ang(width), height:ang(height),
+      sdX:ang(sdX), sdY:ang(sdY), dispersion:ang(dispersion), avgDispX:ang(avgDispX), avgDispY:ang(avgDispY),
+      cepMeasured:ang(cepMeasured), cepCalc:ang(cepCalc),
+      windage:ang(windage), elevation:ang(elevation), offset:ang(offset)
+    }
+  };
+}
+
+function renderStatsTable(stats, unit, hasDistance){
+  if(!stats || stats.n===0) return `<div class="empty-note">No shots marked.</div>`;
+  // MOA/MIL columns ordered MIL first, then MOA.
+  const row = (label, val, key)=>{
+    const a = hasDistance ? stats.ang[key] : null;
+    return `<tr><td>${label}</td><td>${val===null?'—':fmt(val)+' '+unit}</td>${hasDistance?`<td>${a&&a.mil!==null?fmt(a.mil,2):'—'}</td><td>${a&&a.moa!==null?fmt(a.moa,2):'—'}</td>`:''}</tr>`;
+  };
+  let warningHtml = '';
+  if(stats.n>=1 && stats.n<5){
+    warningHtml = `<div class="hint" style="color:var(--brass-bright); margin-bottom:6px;">⚠ Small sample (n=${stats.n}) — extreme spread and CEP can be noisy at this size; consider a composite across sessions for a steadier estimate.</div>`;
+  }
+  let rows = `<tr><td>Shots (n)</td><td colspan="${hasDistance?3:1}">${stats.n}</td></tr>`;
+  rows += row('Max center-to-center', stats.es, 'es');
+  if(stats.edgeToEdge !== null) rows += row('Max spread, edge-to-edge', stats.edgeToEdge, 'edgeToEdge');
+  rows += row('Mean radius', stats.mr, 'mr');
+  rows += row('Group width (horiz.)', stats.width, 'width');
+  rows += row('Group height (vert.)', stats.height, 'height');
+  rows += row('SD horizontal', stats.sdX, 'sdX');
+  rows += row('SD vertical', stats.sdY, 'sdY');
+  if(stats.dispersion !== null){
+    const a = hasDistance ? stats.ang.dispersion : null;
+    rows += `<tr><td>Dispersion (avg SD)</td><td>${fmt(stats.dispersion,4)} ${unit}</td>${hasDistance?`<td>${a&&a.mil!==null?fmt(a.mil,2):'—'}</td><td>${a&&a.moa!==null?fmt(a.moa,2):'—'}</td>`:''}</tr>`;
+  }
+  rows += row('Avg dispersion (horiz.)', stats.avgDispX, 'avgDispX');
+  rows += row('Avg dispersion (vert.)', stats.avgDispY, 'avgDispY');
+  rows += row('CEP-50 (measured)', stats.cepMeasured, 'cepMeasured');
+  rows += row('CEP-50 (calculated)', stats.cepCalc, 'cepCalc');
+  if(stats.offset !== null){
+    rows += row('Windage offset (+right)', stats.windage, 'windage');
+    rows += row('Elevation offset (+high)', stats.elevation, 'elevation');
+    rows += row('Total offset from POA', stats.offset, 'offset');
+
+    if(hasDistance){
+      const windDir = stats.windage > 0 ? 'LEFT' : (stats.windage < 0 ? 'RIGHT' : '—');
+      const elevDir = stats.elevation > 0 ? 'DOWN' : (stats.elevation < 0 ? 'UP' : '—');
+      const wAng = stats.ang.windage, eAng = stats.ang.elevation;
+      const wMoa = wAng.moa!==null ? fmt(Math.abs(wAng.moa),2) : '—';
+      const wMil = wAng.mil!==null ? fmt(Math.abs(wAng.mil),2) : '—';
+      const eMoa = eAng.moa!==null ? fmt(Math.abs(eAng.moa),2) : '—';
+      const eMil = eAng.mil!==null ? fmt(Math.abs(eAng.mil),2) : '—';
+      rows += `<tr><td>Zero shift — Windage</td><td>${fmt(Math.abs(stats.windage))} ${unit} ${windDir}</td><td>${wMil} ${windDir}</td><td>${wMoa} ${windDir}</td></tr>`;
+      rows += `<tr><td>Zero shift — Elevation</td><td>${fmt(Math.abs(stats.elevation))} ${unit} ${elevDir}</td><td>${eMil} ${elevDir}</td><td>${eMoa} ${elevDir}</td></tr>`;
+    }
+  }
+  return `${warningHtml}<table class="stats-table"><thead><tr><th>Metric</th><th>Value</th>${hasDistance?'<th>MIL</th><th>MOA</th>':''}</tr></thead><tbody>${rows}</tbody></table>
+    <div class="hint" style="margin-top:6px;">CEP measured = radius containing 50% of shots (median). CEP calculated = Grubbs approximation 0.5887×(SDh+SDv). Zero shift = turret adjustment to bring point of impact onto point of aim (opposite direction of the offset above) — requires a distance to compute.</div>`;
+}
+
+// ================= Current (unsaved) group =================
+function updateCurrentStats(){
+  const container = document.getElementById('currentStatsTable');
+  const saveBtn = document.getElementById('saveGroupBtn');
+  const velocities = parseVelocities(document.getElementById('groupVelocitiesInput').value);
+  document.getElementById('currentVelocityTable').innerHTML = renderVelocityBlock(velocities, document.getElementById('groupVelocityUnit').value);
+
+  if(!scalePerPx){
+    container.innerHTML = `<div class="empty-note">Calibrate the image (CALIBRATE mode) to compute real-unit statistics.</div>`;
+    document.getElementById('currentColdBoreTable').innerHTML = '';
+    saveBtn.disabled = true;
+    return;
+  }
+  const unit = scalePerPx.unit;
+  const pts = shots.map(s=>({x:s.x*scalePerPx.value, y:s.y*scalePerPx.value}));
+  const aim = aimPoint ? {x:aimPoint.x*scalePerPx.value, y:aimPoint.y*scalePerPx.value} : null;
+  const coldBoreReal = coldBoreShot ? {x:coldBoreShot.x*scalePerPx.value, y:coldBoreShot.y*scalePerPx.value} : null;
+  document.getElementById('currentColdBoreTable').innerHTML = renderColdBoreBlock(coldBoreReal, aim, pts, unit);
+
+  const distVal = parseFloat(document.getElementById('groupDistanceValue').value);
+  const distUnit = document.getElementById('groupDistanceUnit').value;
+  const distanceLinear = distVal ? distanceToUnit(distVal, distUnit, unit) : null;
+  const caliberMM = getCaliberMM();
+  const caliberLinear = caliberMM ? convertLinear(caliberMM, 'mm', unit) : null;
+  const stats = fullGroupStats(pts, aim, distanceLinear, caliberLinear);
+  container.innerHTML = renderStatsTable(stats, unit, !!distanceLinear);
+  saveBtn.disabled = pts.length < 2;
+}
+function onUnitSelectChanged(){
+  updateCalibHint(); updateCurrentStats();
+  document.getElementById('calibUnitLabel').textContent = document.getElementById('unitSelect').value;
+  document.getElementById('caliberCustomUnit').textContent = document.getElementById('unitSelect').value;
+  draw();
+  renderGroupList();
+  renderCompareTable();
+}
+document.getElementById('unitSelect').addEventListener('change', onUnitSelectChanged);
+document.getElementById('groupDistanceValue').addEventListener('input', updateCurrentStats);
+document.getElementById('groupDistanceUnit').addEventListener('change', updateCurrentStats);
+document.getElementById('groupVelocitiesInput').addEventListener('input', updateCurrentStats);
+document.getElementById('groupVelocityUnit').addEventListener('change', updateCurrentStats);
+
+// ================= Save group =================
+document.getElementById('saveGroupBtn').addEventListener('click', async ()=>{
+  if(!scalePerPx) return;
+  const nameInput = document.getElementById('groupNameInput');
+  const name = nameInput.value.trim() || nameInput.placeholder;
+  const unit = scalePerPx.unit;
+  const shotsReal = shots.map(s=>({x:s.x*scalePerPx.value, y:s.y*scalePerPx.value}));
+  const aimReal = aimPoint ? {x:aimPoint.x*scalePerPx.value, y:aimPoint.y*scalePerPx.value} : null;
+  const coldBoreReal = coldBoreShot ? {x:coldBoreShot.x*scalePerPx.value, y:coldBoreShot.y*scalePerPx.value} : null;
+  const distVal = parseFloat(document.getElementById('groupDistanceValue').value) || null;
+  const distUnit = document.getElementById('groupDistanceUnit').value;
+  const velocities = parseVelocities(document.getElementById('groupVelocitiesInput').value);
+  const ammo = document.getElementById('groupAmmoInput').value.trim() || null;
+  const charge = parseFloat(document.getElementById('groupChargeInput').value) || null;
+  const seating = parseFloat(document.getElementById('groupSeatingInput').value) || null;
+  const seatingUnit = document.getElementById('groupSeatingUnit').value;
+  const notes = document.getElementById('groupNotesInput').value.trim() || null;
+  const tags = parseTags(document.getElementById('groupTagsInput').value);
+  const caliberMM = getCaliberMM();
+  const velocityUnit = document.getElementById('groupVelocityUnit').value;
+  const temp = parseFloat(document.getElementById('groupTempInput').value);
+  const tempVal = isNaN(temp) ? null : temp;
+  const tempUnit = document.getElementById('groupTempUnit').value;
+  const humidity = parseFloat(document.getElementById('groupHumidityInput').value);
+  const humidityVal = isNaN(humidity) ? null : humidity;
+  const wind = document.getElementById('groupWindInput').value.trim() || null;
+  const includeInZeroCheck = document.getElementById('includeZeroCheckInput').checked;
+
+  if(editingGroupId){
+    const idx = groups.findIndex(g=>g.id===editingGroupId);
+    if(idx >= 0){
+      groups[idx] = {
+        ...groups[idx],
+        name, unit, shotsReal, aimReal, coldBoreReal,
+        distance: distVal, distanceUnit: distVal ? distUnit : null,
+        caliberMM, ammo, charge, seating, seatingUnit, notes, tags, velocities, velocityUnit,
+        temp: tempVal, tempUnit, humidity: humidityVal, wind, includeInZeroCheck
+      };
+    }
+    editingGroupId = null;
+    setEditModeUI(false);
+  } else {
+    const attach = img && document.getElementById('attachImageCheckbox').checked;
+    let imageRef = null;
+    if(attach){
+      const photoId = getOrCreatePhotoId();
+      if(photoId){
+        imageRef = { photoId, pxPerUnit: 1/scalePerPx.value };
+        await persistPhotos();
+      }
+    }
+    groups.push({
+      id: Date.now(), name, type:'single', unit, shotsReal, aimReal, coldBoreReal,
+      distance: distVal, distanceUnit: distVal ? distUnit : null,
+      caliberMM, sourceGroupIds: null,
+      ammo, charge, seating, seatingUnit, notes, tags, velocities, velocityUnit,
+      temp: tempVal, tempUnit, humidity: humidityVal, wind, includeInZeroCheck,
+      image: imageRef
+    });
+  }
+  await persistGroups();
+  renderGroupList();
+  renderCompareTable();
+
+  // Keep the photo, calibration, view, and distance loaded — a target sheet often
+  // holds several groups (different bullseyes / loads). Only clear the marked shots
+  // and per-group metadata so the next group can be marked immediately.
+  shots = []; aimPoint = null; coldBoreShot = null;
+  clearCurrentGroupFields();
+  draw();
+  updateCurrentStats();
+});
+
+// ================= Best / worst =================
+function computeBestWorst(){
+  const eligible = groups.filter(g=>g.shotsReal.length>=2);
+  if(eligible.length<2) return {bestId:null, worstId:null};
+  const targetUnit = document.getElementById('unitSelect').value;
+  let bestId=null, worstId=null, bestVal=Infinity, worstVal=-Infinity;
+  eligible.forEach(g=>{
+    const distanceLinear = (g.distance&&g.distanceUnit) ? distanceToUnit(g.distance,g.distanceUnit,g.unit) : null;
+    const s = fullGroupStats(g.shotsReal, g.aimReal, distanceLinear, groupCaliberLinear(g));
+    const esNorm = convertLinear(s.es, g.unit, targetUnit);
+    if(esNorm < bestVal){ bestVal = esNorm; bestId = g.id; }
+    if(esNorm > worstVal){ worstVal = esNorm; worstId = g.id; }
+  });
+  if(bestId === worstId) return {bestId:null, worstId:null};
+  return {bestId, worstId};
+}
+
+// ================= Group list / composites =================
+// ================= Soft delete / undo =================
+let pendingDelete = null;
+
+function showUndoToast(name){
+  document.getElementById('undoToastText').textContent = `Deleted "${name}".`;
+  document.getElementById('undoToast').style.display = 'flex';
+}
+function hideUndoToast(){
+  document.getElementById('undoToast').style.display = 'none';
+}
+async function finalizeDelete(){
+  if(!pendingDelete) return;
+  if(pendingDelete.timeoutId) clearTimeout(pendingDelete.timeoutId);
+  pendingDelete = null;
+  hideUndoToast();
+  pruneUnusedPhotos();
+  await persistGroups();
+  await persistPhotos();
+}
+function undoDelete(){
+  if(!pendingDelete) return;
+  clearTimeout(pendingDelete.timeoutId);
+  groups.splice(pendingDelete.index, 0, pendingDelete.group);
+  pendingDelete = null;
+  hideUndoToast();
+  renderGroupList();
+  renderCompareTable();
+}
+document.getElementById('undoDeleteBtn').addEventListener('click', undoDelete);
+
+document.getElementById('groupFilterInput').addEventListener('input', renderGroupList);
+
+function renderGroupList(){
+  document.getElementById('groupNameInput').placeholder = `Group ${groups.filter(g=>g.type==='single').length+1}`;
+  const list = document.getElementById('groupList');
+  const empty = document.getElementById('groupEmpty');
+  const compositeBtn = document.getElementById('compositeBtn');
+
+  if(!groups.length){
+    list.innerHTML=''; empty.textContent = 'No saved groups yet.'; empty.style.display='block'; compositeBtn.disabled=true;
+    populateSummarySelect(); renderZeroCheck(); populateTrendFilterSelect(); renderTrendChart();
+    return;
+  }
+
+  const filterText = document.getElementById('groupFilterInput').value.trim().toLowerCase();
+  const visibleGroups = filterText
+    ? groups.filter(g => g.name.toLowerCase().includes(filterText) || (g.tags||[]).some(t=>t.toLowerCase().includes(filterText)))
+    : groups;
+
+  if(!visibleGroups.length){
+    list.innerHTML=''; empty.textContent = 'No groups match that filter.'; empty.style.display='block'; compositeBtn.disabled=true;
+    populateSummarySelect(); renderZeroCheck(); populateTrendFilterSelect(); renderTrendChart();
+    return;
+  }
+  empty.style.display = 'none';
+  const bw = computeBestWorst();
+
+  list.innerHTML = visibleGroups.map(g=>{
+    const hasDistance = !!(g.distance && g.distanceUnit);
+    const distanceLinear = hasDistance ? distanceToUnit(g.distance, g.distanceUnit, g.unit) : null;
+    const stats = fullGroupStats(g.shotsReal, g.aimReal, distanceLinear, groupCaliberLinear(g));
+    const metaLines = [];
+    if(g.ammo) metaLines.push(`<div><strong>Load:</strong> ${escapeHtml(g.ammo)}</div>`);
+    if(g.charge) metaLines.push(`<div><strong>Charge:</strong> ${g.charge} gr</div>`);
+    if(g.seating) metaLines.push(`<div><strong>Seating:</strong> ${g.seating} ${g.seatingUnit||'mm'}</div>`);
+    if(g.temp!==null && g.temp!==undefined) metaLines.push(`<div><strong>Temp:</strong> ${g.temp}°${g.tempUnit||'C'}</div>`);
+    if(g.humidity!==null && g.humidity!==undefined) metaLines.push(`<div><strong>Humidity:</strong> ${g.humidity}%</div>`);
+    if(g.wind) metaLines.push(`<div><strong>Wind:</strong> ${escapeHtml(g.wind)}</div>`);
+    if(g.notes) metaLines.push(`<div><strong>Notes:</strong> ${escapeHtml(g.notes)}</div>`);
+    const metaBlock = metaLines.length ? `<div class="meta-block">${metaLines.join('')}</div>` : '';
+    const velBlock = renderVelocityBlock(g.velocities, g.velocityUnit);
+    const coldBoreBlock = renderColdBoreBlock(g.coldBoreReal, g.aimReal, g.shotsReal, g.unit);
+    const compositeBreakdown = renderCompositeBreakdown(g);
+    const badge = g.id===bw.bestId ? '<span class="type-tag best">TIGHTEST</span>'
+                : g.id===bw.worstId ? '<span class="type-tag worst">LOOSEST</span>' : '';
+    const zeroCheckBadge = (g.type==='single' && g.includeInZeroCheck===false)
+      ? '<span class="type-tag" style="background:rgba(154,146,132,0.25); color:var(--muted);">NOT ZEROED</span>' : '';
+    const tagPills = (g.tags||[]).map(t=>`<span class="type-tag tagpill">${escapeHtml(t)}</span>`).join('');
+    return `
+    <div class="group-card">
+      <div class="group-card-header" data-toggle="${g.id}">
+        <input type="checkbox" class="grp-check" data-id="${g.id}">
+        <span class="name">${escapeHtml(g.name)}</span>
+        <span class="type-tag ${g.type}">${g.type==='composite'?'COMPOSITE':'SINGLE'}</span>
+        ${badge}
+        ${zeroCheckBadge}
+        ${tagPills}
+        <span class="count">${g.shotsReal.length} shots</span>
+        <button data-edit="${g.id}">EDIT</button>
+        <button data-del="${g.id}">✕</button>
+      </div>
+      <div class="group-card-body" id="body-${g.id}" style="display:none;">
+        ${metaBlock}
+        ${renderStatsTable(stats, g.unit, hasDistance)}
+        ${compositeBreakdown}
+        ${coldBoreBlock}
+        ${velBlock}
+      </div>
+    </div>`;
+  }).join('');
+
+  list.querySelectorAll('[data-toggle]').forEach(el=>{
+    el.addEventListener('click', (e)=>{
+      if(e.target.matches('input, button')) return;
+      const body = document.getElementById('body-'+el.dataset.toggle);
+      body.style.display = body.style.display==='none' ? 'block' : 'none';
+    });
+  });
+  list.querySelectorAll('[data-edit]').forEach(btn=>{
+    btn.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      const g = groups.find(x=>x.id===Number(btn.dataset.edit));
+      if(g) startEditGroup(g);
+    });
+  });
+  list.querySelectorAll('[data-del]').forEach(btn=>{
+    btn.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      const delId = Number(btn.dataset.del);
+      const idx = groups.findIndex(g=>g.id===delId);
+      if(idx < 0) return;
+      if(pendingDelete) finalizeDelete();
+      const [removed] = groups.splice(idx, 1);
+      if(editingGroupId === delId) cancelEdit();
+      renderGroupList();
+      renderCompareTable();
+      pendingDelete = { group: removed, index: idx, timeoutId: null };
+      showUndoToast(removed.name);
+      pendingDelete.timeoutId = setTimeout(()=>{ finalizeDelete(); }, 6000);
+    });
+  });
+  list.querySelectorAll('.grp-check').forEach(cb=>{
+    cb.addEventListener('click', e=>e.stopPropagation());
+    cb.addEventListener('change', updateCompositeButton);
+  });
+  updateCompositeButton();
+  populateSummarySelect();
+  renderZeroCheck();
+  populateTrendFilterSelect();
+  renderTrendChart();
+}
+function updateCompositeButton(){
+  const checked = document.querySelectorAll('.grp-check:checked');
+  document.getElementById('compositeBtn').disabled = checked.length < 2;
+}
+
+document.getElementById('compositeBtn').addEventListener('click', async ()=>{
+  const ids = [...document.querySelectorAll('.grp-check:checked')].map(cb=>Number(cb.dataset.id));
+  const members = groups.filter(g=>ids.includes(g.id));
+  if(members.length < 2) return;
+
+  const targetUnit = document.getElementById('unitSelect').value;
+  const allHaveAim = members.every(g => g.aimReal);
+  let merged = [];
+  members.forEach(g=>{
+    const ref = allHaveAim ? g.aimReal : centroid(g.shotsReal);
+    g.shotsReal.forEach(s=>{
+      let dx = s.x-ref.x, dy = s.y-ref.y;
+      if(g.unit !== targetUnit){ dx = convertLinear(dx, g.unit, targetUnit); dy = convertLinear(dy, g.unit, targetUnit); }
+      merged.push({x:dx, y:dy, source:g.name});
+    });
+  });
+  const compositeAimReal = allHaveAim ? {x:0, y:0} : null;
+
+  const dKeys = members.map(g => g.distance ? `${g.distance}${g.distanceUnit}` : null);
+  const allSame = dKeys.every(d => d !== null && d === dKeys[0]);
+  const distance = allSame ? members[0].distance : null;
+  const distanceUnit = allSame ? members[0].distanceUnit : null;
+
+  const calKeys = members.map(g => g.caliberMM || null);
+  const allSameCal = calKeys.every(c => c !== null && c === calKeys[0]);
+  const caliberMM = allSameCal ? calKeys[0] : null;
+
+  const allVel = members.flatMap(g => g.velocities || []);
+  const velUnitKeys = members.filter(g=>g.velocities&&g.velocities.length).map(g=>g.velocityUnit);
+  const sameVelUnit = velUnitKeys.every(u=>u===velUnitKeys[0]);
+
+  const allTags = [...new Set(members.flatMap(g=>g.tags||[]))];
+
+  const name = `Composite: ${members.map(m=>m.name).join(' + ')}`.slice(0,90);
+  const compositeNotes = allHaveAim
+    ? 'Centered on point of aim (POA) — windage/elevation reflect combined accuracy across all source groups.'
+    : 'Centered on each group\'s own mean POI (not all source groups had a point of aim marked) — reflects pooled precision, not accuracy.';
+
+  groups.push({
+    id: Date.now(), name, type:'composite', unit: targetUnit,
+    shotsReal: merged, aimReal: compositeAimReal, coldBoreReal: null,
+    distance, distanceUnit, caliberMM, sourceGroupIds: ids,
+    ammo: null, charge: null, seating: null, seatingUnit: null, notes: compositeNotes, tags: allTags,
+    velocities: sameVelUnit ? allVel : [], velocityUnit: sameVelUnit && velUnitKeys.length ? velUnitKeys[0] : 'fps',
+    temp: null, tempUnit: 'C', humidity: null, wind: null
+  });
+  await persistGroups();
+  document.querySelectorAll('.grp-check:checked').forEach(cb=>cb.checked=false);
+  renderGroupList();
+  renderCompareTable();
+});
+
+// ================= Zero Check =================
+function computeZeroCheck(){
+  const eligible = groups.filter(g=> g.type==='single' && g.includeInZeroCheck !== false && g.aimReal && g.distance && g.distanceUnit && g.shotsReal.length>=1);
+  if(!eligible.length) return null;
+  const windMoas=[], elevMoas=[], windMils=[], elevMils=[];
+  eligible.forEach(g=>{
+    const distanceLinear = distanceToUnit(g.distance, g.distanceUnit, g.unit);
+    const s = fullGroupStats(g.shotsReal, g.aimReal, distanceLinear, groupCaliberLinear(g));
+    if(s.ang.windage.moa!==null){ windMoas.push(s.ang.windage.moa); windMils.push(s.ang.windage.mil); }
+    if(s.ang.elevation.moa!==null){ elevMoas.push(s.ang.elevation.moa); elevMils.push(s.ang.elevation.mil); }
+  });
+  return {
+    n: eligible.length,
+    windMoaAvg: windMoas.length ? average(windMoas) : null,
+    elevMoaAvg: elevMoas.length ? average(elevMoas) : null,
+    windMilAvg: windMils.length ? average(windMils) : null,
+    elevMilAvg: elevMils.length ? average(elevMils) : null,
+    windMoaSD: windMoas.length>1 ? stddev(windMoas) : null,
+    elevMoaSD: elevMoas.length>1 ? stddev(elevMoas) : null
+  };
+}
+function renderZeroCheck(){
+  const el = document.getElementById('zeroCheckBody');
+  const z = computeZeroCheck();
+  if(!z){
+    el.innerHTML = '<div class="empty-note">Need at least one single group with a point of aim, a distance set, and "Include in Zero Check" turned on.</div>';
+    return;
+  }
+  const windDir = z.windMoaAvg>0?'LEFT':(z.windMoaAvg<0?'RIGHT':'—');
+  const elevDir = z.elevMoaAvg>0?'DOWN':(z.elevMoaAvg<0?'UP':'—');
+  el.innerHTML = `
+    <table class="stats-table">
+      <tr><td>Groups included</td><td>${z.n}</td></tr>
+      <tr><td>Avg windage shift</td><td>${z.windMoaAvg!==null ? fmt(Math.abs(z.windMilAvg),2)+' MIL / '+fmt(Math.abs(z.windMoaAvg),2)+' MOA '+windDir : '—'}</td></tr>
+      <tr><td>Avg elevation shift</td><td>${z.elevMoaAvg!==null ? fmt(Math.abs(z.elevMilAvg),2)+' MIL / '+fmt(Math.abs(z.elevMoaAvg),2)+' MOA '+elevDir : '—'}</td></tr>
+      <tr><td>Windage consistency (SD)</td><td>${z.windMoaSD!==null ? fmt(z.windMoaSD,2)+' MOA' : '—'}</td></tr>
+      <tr><td>Elevation consistency (SD)</td><td>${z.elevMoaSD!==null ? fmt(z.elevMoaSD,2)+' MOA' : '—'}</td></tr>
+    </table>
+    <div class="hint" style="margin-top:6px;">Pooled zero-shift suggestion across every single group with a marked point of aim and distance, excluding any with "Include in Zero Check" turned off. Lower SD means a more consistent zero across sessions.</div>`;
+}
+
+// ================= Group Summary panel =================
+const PALETTE = ['#D64B2A','#3E7CB1','#8FCB92','#D8A15C','#B07AA1','#59A5A0','#E6C229','#C46210'];
+let summaryBgMode = 'grid';
+let summaryImgCache = {};
+
+function getSelectedSummaryGroup(){
+  const id = document.getElementById('summaryGroupSelect').value;
+  if(!id) return null;
+  return groups.find(g=>String(g.id)===id) || null;
+}
+
+function populateSummarySelect(){
+  const sel = document.getElementById('summaryGroupSelect');
+  const prevVal = sel.value;
+  sel.innerHTML = '<option value="">— select a group —</option>' +
+    groups.map(g=>`<option value="${g.id}">${escapeHtml(g.name)} (${g.type==='composite'?'composite':'single'})</option>`).join('');
+  const stillExists = groups.some(g=>String(g.id)===prevVal);
+  if(stillExists) sel.value = prevVal;
+  else if(groups.length) sel.value = String(groups[groups.length-1].id);
+  refreshSummaryAvailability();
+}
+document.getElementById('summaryGroupSelect').addEventListener('change', refreshSummaryAvailability);
+
+function refreshSummaryAvailability(){
+  const g = getSelectedSummaryGroup();
+  const imgBtn = document.getElementById('summaryBgImageBtn');
+  const photo = g && g.image ? photos[g.image.photoId] : null;
+  const hasImage = !!photo;
+  imgBtn.disabled = !hasImage;
+  if(!hasImage && summaryBgMode === 'image') summaryBgMode = 'grid';
+  imgBtn.classList.toggle('active', summaryBgMode==='image');
+  document.getElementById('summaryBgGridBtn').classList.toggle('active', summaryBgMode==='grid');
+  renderSummary();
+}
+document.getElementById('summaryBgImageBtn').addEventListener('click', ()=>{
+  if(document.getElementById('summaryBgImageBtn').disabled) return;
+  summaryBgMode = 'image';
+  refreshSummaryAvailability();
+});
+document.getElementById('summaryBgGridBtn').addEventListener('click', ()=>{
+  summaryBgMode = 'grid';
+  refreshSummaryAvailability();
+});
+
+function renderSummary(){
+  const canvas = document.getElementById('summaryCanvas');
+  const sctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  const legendEl = document.getElementById('summaryLegend');
+  const statsLine = document.getElementById('summaryStatsLine');
+  legendEl.innerHTML = '';
+  statsLine.textContent = '';
+  document.getElementById('summaryBreakdown').innerHTML = '';
+  sctx.clearRect(0,0,W,H);
+
+  const g = getSelectedSummaryGroup();
+  if(!g || !g.shotsReal.length){
+    sctx.fillStyle = '#EDE7D9'; sctx.fillRect(0,0,W,H);
+    sctx.fillStyle = '#9A9284'; sctx.font = '12px "IBM Plex Mono"'; sctx.textAlign = 'center';
+    sctx.fillText(g ? 'This group has no shots.' : 'Select a group above.', W/2, H/2);
+    sctx.textAlign = 'left';
+    return;
+  }
+
+  const pts = g.shotsReal;
+  const aim = g.aimReal;
+  const photo = g.image ? photos[g.image.photoId] : null;
+  const useImage = summaryBgMode === 'image' && photo;
+
+  function finishDraw(scale, offsetX, offsetY){
+    const bySource = {};
+    pts.forEach(p=>{
+      const key = p.source || g.name;
+      (bySource[key] = bySource[key] || []).push(p);
+    });
+    const sourceKeys = Object.keys(bySource);
+    const colorFor = (key)=> sourceKeys.length<=1 ? '#D64B2A' : PALETTE[sourceKeys.indexOf(key) % PALETTE.length];
+
+    if(pts.length >= 2){
+      const c = centroid(pts);
+      const distances = pts.map(p=>dist(p,c));
+      const mr = average(distances);
+      const cep = median(distances);
+      const cs = {x:c.x*scale+offsetX, y:c.y*scale+offsetY};
+      drawDashedCircleOn(sctx, cs, mr*scale, '#D8A15C');
+      drawDashedCircleOn(sctx, cs, cep*scale, useImage ? '#F1EEE4' : '#6B665B');
+      drawCrosshairOn(sctx, cs, '#D8A15C', 7);
+      if(aim){
+        const as = {x:aim.x*scale+offsetX, y:aim.y*scale+offsetY};
+        sctx.strokeStyle='rgba(62,124,177,0.55)'; sctx.setLineDash([4,4]);
+        sctx.beginPath(); sctx.moveTo(as.x,as.y); sctx.lineTo(cs.x,cs.y); sctx.stroke(); sctx.setLineDash([]);
+      }
+
+      const distanceLinear = (g.distance&&g.distanceUnit) ? distanceToUnit(g.distance,g.distanceUnit,g.unit) : null;
+      const s = fullGroupStats(pts, aim, distanceLinear, groupCaliberLinear(g));
+      statsLine.textContent = `ES ${fmt(s.es)} ${g.unit} · MR ${fmt(s.mr)} ${g.unit} · CEP50 ${fmt(s.cepMeasured)} ${g.unit}`;
+      document.getElementById('summaryBreakdown').innerHTML = renderCompositeBreakdown(g);
+    }
+
+    pts.forEach(p=>{
+      const key = p.source || g.name;
+      const sp = {x:p.x*scale+offsetX, y:p.y*scale+offsetY};
+      drawDotOn(sctx, sp, colorFor(key), 6);
+    });
+
+    if(aim){
+      const as = {x:aim.x*scale+offsetX, y:aim.y*scale+offsetY};
+      drawCrosshairOn(sctx, as, '#3E7CB1', 10);
+    }
+
+    if(g.coldBoreReal){
+      const cbs = {x:g.coldBoreReal.x*scale+offsetX, y:g.coldBoreReal.y*scale+offsetY};
+      sctx.strokeStyle='#E6C229'; sctx.fillStyle='#E6C229'; sctx.lineWidth=2;
+      const r=8;
+      sctx.beginPath();
+      sctx.moveTo(cbs.x,cbs.y-r); sctx.lineTo(cbs.x+r,cbs.y); sctx.lineTo(cbs.x,cbs.y+r); sctx.lineTo(cbs.x-r,cbs.y); sctx.closePath();
+      sctx.stroke();
+    }
+
+    if(sourceKeys.length > 1){
+      sourceKeys.forEach(key=>{
+        const gc = centroid(bySource[key]);
+        const gcs = {x:gc.x*scale+offsetX, y:gc.y*scale+offsetY};
+        drawHollowCircleOn(sctx, gcs, 10, colorFor(key));
+      });
+      legendEl.innerHTML = sourceKeys.map(k=>`<span><span class="dot" style="background:${colorFor(k)}"></span>${escapeHtml(k)}</span>`).join('') +
+        `<span style="color:var(--muted);">— small dots: shots · large hollow circles: each load's own mean point of impact</span>`;
+    }
+  }
+
+  if(useImage){
+    const draw2 = (imageObj)=>{
+      const iw = photo.w, ih = photo.h;
+      const fitScale = Math.min(W/iw, H/ih) * 0.94;
+      const offsetX = (W - iw*fitScale)/2;
+      const offsetY = (H - ih*fitScale)/2;
+      sctx.fillStyle = '#EDE7D9'; sctx.fillRect(0,0,W,H);
+      sctx.drawImage(imageObj, offsetX, offsetY, iw*fitScale, ih*fitScale);
+      const thumbPxPerUnit = g.image.pxPerUnit * (photo.w / photo.origW);
+      finishDraw(thumbPxPerUnit*fitScale, offsetX, offsetY);
+    };
+    const cacheKey = g.image.photoId;
+    if(summaryImgCache[cacheKey]){
+      draw2(summaryImgCache[cacheKey]);
+    } else {
+      const imageObj = new Image();
+      imageObj.onload = ()=>{ summaryImgCache[cacheKey] = imageObj; draw2(imageObj); };
+      imageObj.src = photo.dataURL;
+    }
+  } else {
+    const allPts = aim ? [...pts, aim] : pts;
+    const t = computeAutoFitTransform(allPts, W, H, 0.28);
+    sctx.fillStyle = '#EDE7D9'; sctx.fillRect(0,0,W,H);
+    drawSimpleGridOn(sctx, W, H, 10);
+    finishDraw(t.scale, t.offsetX, t.offsetY);
+  }
+}
+
+document.getElementById('exportSummaryImageBtn').addEventListener('click', ()=>{
+  const g = getSelectedSummaryGroup();
+  const canvas = document.getElementById('summaryCanvas');
+  const url = canvas.toDataURL('image/png');
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = (g ? g.name.replace(/[^a-z0-9]+/gi,'_') : 'group') + '-summary.png';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+});
+
+// ================= Trend =================
+let trendXMode = 'order';
+document.getElementById('trendXOrderBtn').addEventListener('click', ()=>{
+  trendXMode = 'order';
+  document.getElementById('trendXOrderBtn').classList.add('active');
+  document.getElementById('trendXChargeBtn').classList.remove('active');
+  document.getElementById('trendXSeatingBtn').classList.remove('active');
+  renderTrendChart();
+});
+document.getElementById('trendXChargeBtn').addEventListener('click', ()=>{
+  trendXMode = 'charge';
+  document.getElementById('trendXChargeBtn').classList.add('active');
+  document.getElementById('trendXOrderBtn').classList.remove('active');
+  document.getElementById('trendXSeatingBtn').classList.remove('active');
+  renderTrendChart();
+});
+document.getElementById('trendXSeatingBtn').addEventListener('click', ()=>{
+  trendXMode = 'seating';
+  document.getElementById('trendXSeatingBtn').classList.add('active');
+  document.getElementById('trendXOrderBtn').classList.remove('active');
+  document.getElementById('trendXChargeBtn').classList.remove('active');
+  renderTrendChart();
+});
+document.getElementById('trendMetricSelect').addEventListener('change', renderTrendChart);
+document.getElementById('trendFilterSelect').addEventListener('change', renderTrendChart);
+document.getElementById('trendUnitSelect').addEventListener('change', renderTrendChart);
+document.getElementById('trendVelUnitSelect').addEventListener('change', renderTrendChart);
+document.getElementById('trendBoxPlotInput').addEventListener('change', renderTrendChart);
+
+function populateTrendFilterSelect(){
+  const sel = document.getElementById('trendFilterSelect');
+  const prevVal = sel.value;
+  const ammoSet = new Set(), tagSet = new Set();
+  groups.forEach(g=>{
+    if(g.type !== 'single') return;
+    if(g.ammo) ammoSet.add(g.ammo);
+    (g.tags||[]).forEach(t=> tagSet.add(t));
+  });
+  let html = '<option value="">All groups</option>';
+  if(ammoSet.size){
+    html += '<optgroup label="By load (Ammo)">' +
+      [...ammoSet].sort().map(a=>`<option value="ammo::${escapeHtml(a)}">${escapeHtml(a)}</option>`).join('') +
+      '</optgroup>';
+  }
+  if(tagSet.size){
+    html += '<optgroup label="By tag">' +
+      [...tagSet].sort().map(t=>`<option value="tag::${escapeHtml(t)}">${escapeHtml(t)}</option>`).join('') +
+      '</optgroup>';
+  }
+  sel.innerHTML = html;
+  if([...sel.options].some(o=>o.value===prevVal)) sel.value = prevVal;
+}
+
+function quantileSorted(sorted, q){
+  const pos = (sorted.length-1)*q;
+  const base = Math.floor(pos);
+  const rest = pos-base;
+  return sorted[base+1] !== undefined ? sorted[base] + rest*(sorted[base+1]-sorted[base]) : sorted[base];
+}
+
+// Draws a box (min/Q1/median/Q3/max) per group's velocity readings, so consistency
+// across loads/charges is visible at a glance rather than collapsed to one average point.
+function drawVelocityBoxPlot(tctx, singlesArr, velUnit, xFor, marginL, marginT, marginR, marginB, plotW, plotH, W, H){
+  const groupVals = singlesArr.map(g=> g.velocities.map(v=>convertVelocity(v, g.velocityUnit, velUnit)).sort((a,b)=>a-b));
+  const allVals = groupVals.flat();
+  const minV = Math.min(...allVals), maxV = Math.max(...allVals);
+  const padV = (maxV-minV)*0.15 || Math.max(minV*0.05, 1);
+  const lo = Math.max(0, minV-padV), hi = maxV+padV;
+  const yFor = (v)=> marginT + (hi>lo ? (1-(v-lo)/(hi-lo)) : 0.5)*plotH;
+
+  tctx.strokeStyle = 'rgba(0,0,0,0.2)'; tctx.lineWidth = 1;
+  tctx.beginPath(); tctx.moveTo(marginL,marginT); tctx.lineTo(marginL,H-marginB); tctx.lineTo(W-marginR,H-marginB); tctx.stroke();
+
+  const boxWidth = Math.max(10, Math.min(28, (plotW / Math.max(singlesArr.length,1)) * 0.5));
+
+  groupVals.forEach((vals,i)=>{
+    if(!vals.length) return;
+    const x = xFor(i);
+    const min = vals[0], max = vals[vals.length-1];
+    const q1 = quantileSorted(vals, 0.25), median = quantileSorted(vals, 0.5), q3 = quantileSorted(vals, 0.75);
+
+    tctx.strokeStyle = '#8A8578'; tctx.lineWidth = 1.5;
+    tctx.beginPath(); tctx.moveTo(x, yFor(min)); tctx.lineTo(x, yFor(max)); tctx.stroke();
+    tctx.beginPath(); tctx.moveTo(x-boxWidth*0.25, yFor(min)); tctx.lineTo(x+boxWidth*0.25, yFor(min)); tctx.stroke();
+    tctx.beginPath(); tctx.moveTo(x-boxWidth*0.25, yFor(max)); tctx.lineTo(x+boxWidth*0.25, yFor(max)); tctx.stroke();
+
+    const boxTop = yFor(q3), boxBottom = yFor(q1);
+    tctx.fillStyle = 'rgba(184,121,58,0.35)';
+    tctx.strokeStyle = '#B8793A'; tctx.lineWidth = 1.5;
+    tctx.fillRect(x-boxWidth/2, boxTop, boxWidth, Math.max(1,boxBottom-boxTop));
+    tctx.strokeRect(x-boxWidth/2, boxTop, boxWidth, Math.max(1,boxBottom-boxTop));
+
+    tctx.strokeStyle = '#D64B2A'; tctx.lineWidth = 2;
+    const my = yFor(median);
+    tctx.beginPath(); tctx.moveTo(x-boxWidth/2, my); tctx.lineTo(x+boxWidth/2, my); tctx.stroke();
+  });
+
+  const unitLabel = velUnit==='mps' ? 'm/s' : 'fps';
+  tctx.fillStyle = '#6B665B'; tctx.font = '9px "IBM Plex Mono"'; tctx.textAlign = 'right';
+  tctx.fillText(`${fmt(hi,0)} ${unitLabel}`, marginL-4, marginT+8);
+  tctx.fillText(`${fmt(lo,0)} ${unitLabel}`, marginL-4, H-marginB);
+  tctx.textAlign = 'left';
+}
+
+function renderTrendChart(){
+  const canvas = document.getElementById('trendCanvas');
+  const tctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  tctx.clearRect(0,0,W,H);
+  tctx.fillStyle = '#EDE7D9'; tctx.fillRect(0,0,W,H);
+
+  const metric = document.getElementById('trendMetricSelect').value;
+  const unit = document.getElementById('trendUnitSelect').value;
+  const velUnit = document.getElementById('trendVelUnitSelect').value;
+  const filterVal = document.getElementById('trendFilterSelect').value;
+  const boxPlotMode = document.getElementById('trendBoxPlotInput').checked;
+  const hintEl = document.getElementById('trendHint');
+
+  document.getElementById('trendMetricSelect').disabled = boxPlotMode;
+  document.getElementById('trendUnitSelect').disabled = boxPlotMode;
+
+  let singles = groups.filter(g=>g.type==='single' && g.shotsReal.length>=2);
+  let filterLabel = '';
+  if(filterVal.startsWith('ammo::')){
+    const val = filterVal.slice(6);
+    singles = singles.filter(g=>g.ammo === val);
+    filterLabel = ` · load: ${val}`;
+  } else if(filterVal.startsWith('tag::')){
+    const val = filterVal.slice(5);
+    singles = singles.filter(g=> (g.tags||[]).includes(val));
+    filterLabel = ` · tag: ${val}`;
+  }
+  if(trendXMode === 'charge') singles = singles.filter(g=>g.charge);
+  if(trendXMode === 'seating') singles = singles.filter(g=>g.seating!==null && g.seating!==undefined);
+
+  if(boxPlotMode){
+    singles = singles.filter(g=>g.velocities && g.velocities.length>=1);
+  } else {
+    if(metric === 'velAvg') singles = singles.filter(g=>g.velocities && g.velocities.length>0);
+    if(metric === 'velSD') singles = singles.filter(g=>g.velocities && g.velocities.length>1);
+  }
+
+  singles.sort((a,b)=>{
+    if(trendXMode==='charge') return a.charge-b.charge;
+    if(trendXMode==='seating') return convertLinear(a.seating,a.seatingUnit||'mm','mm') - convertLinear(b.seating,b.seatingUnit||'mm','mm');
+    return a.id-b.id;
+  });
+
+  const marginL=44, marginR=16, marginT=16, marginB=34;
+  const plotW = W-marginL-marginR, plotH = H-marginT-marginB;
+
+  function makeXFor(arr){
+    if(trendXMode === 'charge'){
+      const charges = arr.map(g=>g.charge);
+      const minC = Math.min(...charges), maxC = Math.max(...charges);
+      const spanC = (maxC-minC) || 1;
+      return (i)=> marginL + ((charges[i]-minC)/spanC)*plotW;
+    } else if(trendXMode === 'seating'){
+      const seatVals = arr.map(g=>convertLinear(g.seating, g.seatingUnit||'mm', 'mm'));
+      const minS = Math.min(...seatVals), maxS = Math.max(...seatVals);
+      const spanS = (maxS-minS) || 1;
+      return (i)=> marginL + ((seatVals[i]-minS)/spanS)*plotW;
+    }
+    return (i)=> marginL + (arr.length>1 ? (i/(arr.length-1))*plotW : plotW/2);
+  }
+
+  function drawXLabels(arr, xFor){
+    arr.forEach((g,i)=>{
+      const x = xFor(i);
+      tctx.fillStyle = '#6B665B'; tctx.font = '8.5px "IBM Plex Mono"'; tctx.textAlign = 'center';
+      let label = null;
+      if(trendXMode === 'charge') label = fmt(g.charge,1);
+      else if(trendXMode === 'seating') label = fmt(convertLinear(g.seating, g.seatingUnit||'mm', 'mm'),2);
+      else if(boxPlotMode) label = g.name.length>10 ? g.name.slice(0,9)+'…' : g.name;
+      if(label !== null) tctx.fillText(label, x, H-marginB+14);
+      tctx.textAlign = 'left';
+    });
+  }
+
+  if(boxPlotMode){
+    if(singles.length < 1){
+      tctx.fillStyle = '#9A9284'; tctx.font = '12px "IBM Plex Mono"'; tctx.textAlign = 'center';
+      tctx.fillText('Need at least 1 group with velocity data.', W/2, H/2);
+      tctx.textAlign = 'left';
+      hintEl.textContent = '';
+      return;
+    }
+    const xFor = makeXFor(singles);
+    drawVelocityBoxPlot(tctx, singles, velUnit, xFor, marginL, marginT, marginR, marginB, plotW, plotH, W, H);
+    drawXLabels(singles, xFor);
+    const vu = velUnit==='mps' ? 'm/s' : 'fps';
+    const xLabel = trendXMode==='charge' ? 'charge-ordered (gr, labeled)' : trendXMode==='seating' ? 'seating-ordered (mm, labeled)' : 'chronological by save order';
+    hintEl.textContent = `${singles.length} groups shown, ${xLabel} · velocity box plot (${vu})${filterLabel}`;
+    return;
+  }
+
+  const isVelMetric = metric === 'velAvg' || metric === 'velSD';
+  const isAngularUnit = !isVelMetric && (unit === 'mrad' || unit === 'moa');
+
+  const dataPoints = singles.map(g=>{
+    let value;
+    if(isVelMetric){
+      const v = computeVelocityStats(g.velocities);
+      const raw = metric==='velAvg' ? v.avg : v.sd;
+      value = (raw===null||raw===undefined) ? null : convertVelocity(raw, g.velocityUnit, velUnit);
+    } else {
+      const distanceLinear = (g.distance&&g.distanceUnit) ? distanceToUnit(g.distance,g.distanceUnit,g.unit) : null;
+      const s = fullGroupStats(g.shotsReal, g.aimReal, distanceLinear, groupCaliberLinear(g));
+      if(isAngularUnit){
+        const a = s.ang[metric];
+        value = a ? (unit==='mrad' ? a.mil : a.moa) : null;
+      } else {
+        value = (s[metric]===null||s[metric]===undefined) ? null : convertLinear(s[metric], g.unit, unit);
+      }
+    }
+    return {group:g, value};
+  }).filter(d=> d.value!==null && d.value!==undefined && !isNaN(d.value));
+
+  singles = dataPoints.map(d=>d.group);
+  const values = dataPoints.map(d=>d.value);
+
+  if(singles.length < 2){
+    tctx.fillStyle = '#9A9284'; tctx.font = '12px "IBM Plex Mono"'; tctx.textAlign = 'center';
+    const msg = isAngularUnit ? 'Need at least 2 qualifying groups with a distance set (for MOA/mrad).' :
+                trendXMode==='charge' ? 'Need at least 2 groups with a Charge value set.' :
+                trendXMode==='seating' ? 'Need at least 2 groups with a Seating value set.' :
+                isVelMetric ? 'Need at least 2 groups with velocity data.' :
+                'Need at least 2 single groups to show a trend.';
+    tctx.fillText(msg, W/2, H/2);
+    tctx.textAlign = 'left';
+    hintEl.textContent = '';
+    return;
+  }
+
+  const xFor = makeXFor(singles);
+  const minV = Math.min(...values), maxV = Math.max(...values);
+  const padV = (maxV-minV)*0.15 || Math.max(minV*0.1, 1);
+  const lo = Math.max(0, minV-padV), hi = maxV+padV;
+  const yFor = (v)=> marginT + (hi>lo ? (1-(v-lo)/(hi-lo)) : 0.5)*plotH;
+
+  tctx.strokeStyle = 'rgba(0,0,0,0.2)'; tctx.lineWidth = 1;
+  tctx.beginPath(); tctx.moveTo(marginL,marginT); tctx.lineTo(marginL,H-marginB); tctx.lineTo(W-marginR,H-marginB); tctx.stroke();
+
+  tctx.strokeStyle = '#B8793A'; tctx.lineWidth = 2;
+  tctx.beginPath();
+  values.forEach((v,i)=>{ const x=xFor(i), y=yFor(v); if(i===0) tctx.moveTo(x,y); else tctx.lineTo(x,y); });
+  tctx.stroke();
+
+  values.forEach((v,i)=>{
+    const x=xFor(i), y=yFor(v);
+    tctx.fillStyle = '#D64B2A';
+    tctx.beginPath(); tctx.arc(x,y,4,0,Math.PI*2); tctx.fill();
+  });
+  drawXLabels(singles, xFor);
+
+  const unitLabel = isVelMetric ? (velUnit==='mps'?'m/s':'fps') : (isAngularUnit ? (unit==='mrad'?'mrad':'MOA') : unit);
+  tctx.fillStyle = '#6B665B'; tctx.font = '9px "IBM Plex Mono"'; tctx.textAlign = 'right';
+  tctx.fillText(`${fmt(hi,2)} ${unitLabel}`, marginL-4, marginT+8);
+  tctx.fillText(`${fmt(lo,2)} ${unitLabel}`, marginL-4, H-marginB);
+  tctx.textAlign = 'left';
+
+  const xLabel = trendXMode==='charge' ? 'charge-ordered (gr, labeled)' : trendXMode==='seating' ? 'seating-ordered (mm, labeled)' : 'chronological by save order';
+  hintEl.textContent = `${singles.length} groups shown, ${xLabel} · unit: ${unitLabel}${filterLabel}`;
+}
+
+// ================= Compare table =================
+function formatCompareValue(s, key, unit, groupUnit){
+  if(unit === 'mrad' || unit === 'moa'){
+    const a = s.ang ? s.ang[key] : null;
+    const v = a ? (unit === 'mrad' ? a.mil : a.moa) : null;
+    if(v === null || v === undefined) return '—';
+    return fmt(v,2) + ' ' + (unit==='mrad' ? 'mrad' : 'MOA');
+  }
+  const raw = s[key];
+  if(raw === null || raw === undefined) return '—';
+  return fmt(convertLinear(raw, groupUnit, unit)) + ' ' + unit;
+}
+
+function renderCompareTable(){
+  const table = document.getElementById('compareTable');
+  const targetUnit = document.getElementById('compareUnitSelect').value;
+  const eligible = groups.filter(g=>g.shotsReal.length>=1);
+  if(!eligible.length){ table.innerHTML = `<tr><td class="empty-note">No groups yet.</td></tr>`; return; }
+  const bw = computeBestWorst();
+
+  let header = `<tr><th>Group</th><th>Type</th><th>N</th><th>ES</th><th>MR</th><th>CEP50</th><th>SD-H</th><th>SD-V</th><th>Dispersion</th><th>Vel avg</th><th>Vel SD</th></tr>`;
+  let rowsHtml = eligible.map(g=>{
+    const distanceLinear = (g.distance&&g.distanceUnit)? distanceToUnit(g.distance,g.distanceUnit,g.unit):null;
+    const s = fullGroupStats(g.shotsReal, g.aimReal, distanceLinear, groupCaliberLinear(g));
+    const val = (key)=> formatCompareValue(s, key, targetUnit, g.unit);
+    const vel = computeVelocityStats(g.velocities);
+    const vu = g.velocityUnit === 'mps' ? 'm/s' : 'fps';
+    const colorStyle = g.id===bw.bestId ? `style="color:var(--good);"` : (g.id===bw.worstId ? `style="color:var(--bad);"` : '');
+    return `<tr ${colorStyle}>
+      <td>${escapeHtml(g.name)}</td>
+      <td>${g.type==='composite'?'COMP':'SGL'}</td>
+      <td>${s.n}</td>
+      <td>${val('es')}</td>
+      <td>${val('mr')}</td>
+      <td>${val('cepMeasured')}</td>
+      <td>${val('sdX')}</td>
+      <td>${val('sdY')}</td>
+      <td>${val('dispersion')}</td>
+      <td>${vel ? fmt(vel.avg,0)+' '+vu : '—'}</td>
+      <td>${vel && vel.sd!==null ? fmt(vel.sd,1)+' '+vu : '—'}</td>
+    </tr>`;
+  }).join('');
+  table.innerHTML = header + rowsHtml;
+}
+document.getElementById('compareUnitSelect').addEventListener('change', renderCompareTable);
+
+// ================= Export =================
+function downloadCSV(rows, filename){
+  const csv = rows.map(r=>r.join(',')).join('\n');
+  const blob = new Blob([csv], {type:'text/csv'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href=url; a.download=filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+document.getElementById('exportPointsBtn').addEventListener('click', ()=>{
+  let rows = [['group','type','shot_index','x','y','unit']];
+  groups.forEach(g=> g.shotsReal.forEach((s,i)=> rows.push([g.name, g.type, i+1, s.x.toFixed(4), s.y.toFixed(4), g.unit]) ));
+  downloadCSV(rows, 'downrange-points.csv');
+});
+document.getElementById('exportSummaryBtn').addEventListener('click', ()=>{
+  const header = ['group','type','n','unit','max_center_to_center','edge_to_edge_max','mean_radius','width','height','sd_horizontal','sd_vertical','dispersion','avg_dispersion_h','avg_dispersion_v','cep50_measured','cep50_calculated','windage_offset','elevation_offset','total_offset','distance','include_in_zero_check','caliber_mm','ammo','charge_gr','seating','seating_unit','notes','tags','temp','temp_unit','humidity','wind','vel_avg','vel_es','vel_sd','vel_unit'];
+  let rows = [header];
+  groups.forEach(g=>{
+    const hasDistance = !!(g.distance && g.distanceUnit);
+    const distanceLinear = hasDistance ? distanceToUnit(g.distance, g.distanceUnit, g.unit) : null;
+    const s = fullGroupStats(g.shotsReal, g.aimReal, distanceLinear, groupCaliberLinear(g));
+    const vel = computeVelocityStats(g.velocities);
+    rows.push([
+      g.name, g.type, s.n, g.unit,
+      s.es??'', s.edgeToEdge??'', s.mr??'', s.width??'', s.height??'',
+      s.sdX??'', s.sdY??'', s.dispersion!==null&&s.dispersion!==undefined?s.dispersion.toFixed(4):'',
+      s.avgDispX??'', s.avgDispY??'',
+      s.cepMeasured??'', s.cepCalc??'',
+      s.windage??'', s.elevation??'', s.offset??'',
+      hasDistance ? `${g.distance}${g.distanceUnit}` : '',
+      g.type==='single' ? (g.includeInZeroCheck!==false ? 'yes' : 'no') : '',
+      g.caliberMM ?? '',
+      g.ammo ? `"${String(g.ammo).replace(/"/g,'""')}"` : '',
+      g.charge ?? '',
+      g.seating ?? '', g.seating ? (g.seatingUnit||'mm') : '',
+      g.notes ? `"${String(g.notes).replace(/"/g,'""')}"` : '',
+      (g.tags&&g.tags.length) ? `"${g.tags.join('; ').replace(/"/g,'""')}"` : '',
+      (g.temp!==null&&g.temp!==undefined) ? g.temp : '', (g.temp!==null&&g.temp!==undefined) ? (g.tempUnit||'C') : '',
+      (g.humidity!==null&&g.humidity!==undefined) ? g.humidity : '',
+      g.wind ? `"${String(g.wind).replace(/"/g,'""')}"` : '',
+      vel? vel.avg.toFixed(1):'', vel&&vel.es!==null?vel.es:'', vel&&vel.sd!==null?vel.sd.toFixed(2):'',
+      g.velocities&&g.velocities.length? g.velocityUnit : ''
+    ]);
+  });
+  downloadCSV(rows, 'downrange-summary.csv');
+});
+
+document.getElementById('exportSessionBtn').addEventListener('click', ()=>{
+  const data = JSON.stringify({version:6, exportedAt:new Date().toISOString(), groups, photos}, null, 2);
+  const blob = new Blob([data], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href=url; a.download='downrange-session.json';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+});
+document.getElementById('importSessionBtn').addEventListener('click', ()=> document.getElementById('importFile').click());
+document.getElementById('importFile').addEventListener('change', (e)=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onerror = ()=>{
+    document.getElementById('importStatus').textContent = 'Import failed: could not read that file.';
+    setTimeout(()=>{ document.getElementById('importStatus').textContent=''; }, 5000);
+  };
+  reader.onload = async (ev)=>{
+    const statusEl = document.getElementById('importStatus');
+    try{
+      const parsed = JSON.parse(ev.target.result);
+      if(Array.isArray(parsed.groups)){
+        groups = parsed.groups;
+        photos = (parsed.photos && typeof parsed.photos === 'object') ? parsed.photos : {};
+        pruneUnusedPhotos();
+        await persistGroups();
+        await persistPhotos();
+        renderGroupList();
+        renderCompareTable();
+        statusEl.textContent = `Imported ${groups.length} group(s).`;
+      } else {
+        statusEl.textContent = 'Import failed: no groups array found in file.';
+      }
+    }catch(err){
+      statusEl.textContent = 'Import failed: invalid JSON file.';
+    }
+    setTimeout(()=>{ statusEl.textContent=''; }, 5000);
+    e.target.value = '';
+  };
+  reader.readAsText(file);
+});
+
+// ================= First-run intro banner =================
+async function checkFirstRun(){
+  try{
+    const res = await storageGet('downrange:seenIntro:v1', false);
+    if(res && res.value) return;
+  }catch(e){}
+  document.getElementById('introBanner').style.display = 'flex';
+}
+document.getElementById('introBannerDismiss').addEventListener('click', async ()=>{
+  document.getElementById('introBanner').style.display = 'none';
+  try{ await storageSet('downrange:seenIntro:v1', true, false); }catch(e){}
+});
+
+// ================= Init =================
+loadSettings().then(()=>{
+  fitView();
+  draw();
+  updateCurrentStats();
+});
+loadPhotos().then(loadGroups);
+checkFirstRun();
+if(window.__downrangeStorageIsMemoryOnly){
+  const el = document.getElementById('storageStatus');
+  if(el) el.textContent = 'Warning: this browser doesn\'t support local storage here — your data will be lost when you close this tab. Try a different browser (avoid private/incognito mode).';
+}
+</script>
+
+</body>
+</html>
