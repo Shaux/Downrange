@@ -387,7 +387,7 @@
           <option value="mm">mm</option>
           <option value="cm">cm</option>
           <option value="in">in</option>
-          <option value="mrad">mrad</option>
+          <option value="mrad">MRAD</option>
           <option value="moa">MOA</option>
         </select>
         <select id="trendVelUnitSelect" style="max-width:90px;">
@@ -423,7 +423,7 @@
           <option value="mm">mm</option>
           <option value="cm">cm</option>
           <option value="in">in</option>
-          <option value="mrad">mrad</option>
+          <option value="mrad">MRAD</option>
           <option value="moa">MOA</option>
         </select>
       </div>
@@ -462,7 +462,14 @@
         <option value="mps" selected>m/s</option>
       </select>
     </div>
-    <div class="hint">More settings will land here later.</div>
+  </div>
+
+  <div class="panel" style="margin-top:14px;">
+    <div class="section-title">CONTACT</div>
+    <p class="hint">Questions, bugs, or feature ideas — get in touch:</p>
+    <p style="font-size:13px; color:var(--brass-bright); font-family:'IBM Plex Mono', monospace;">
+      <a href="mailto:info.downrangebalistics@gmail.com" style="color:var(--brass-bright); text-decoration:none;">info.downrangebalistics@gmail.com</a>
+    </p>
   </div>
 </div>
 
@@ -2473,7 +2480,7 @@ function renderTrendChart(){
   });
   drawXLabels(singles, xFor);
 
-  const unitLabel = isVelMetric ? (velUnit==='mps'?'m/s':'fps') : (isAngularUnit ? (unit==='mrad'?'mrad':'MOA') : unit);
+  const unitLabel = isVelMetric ? (velUnit==='mps'?'m/s':'fps') : (isAngularUnit ? (unit==='mrad'?'MRAD':'MOA') : unit);
   tctx.fillStyle = '#6B665B'; tctx.font = '9px "IBM Plex Mono"'; tctx.textAlign = 'right';
   tctx.fillText(`${fmt(hi,2)} ${unitLabel}`, marginL-4, marginT+8);
   tctx.fillText(`${fmt(lo,2)} ${unitLabel}`, marginL-4, H-marginB);
@@ -2489,7 +2496,7 @@ function formatCompareValue(s, key, unit, groupUnit){
     const a = s.ang ? s.ang[key] : null;
     const v = a ? (unit === 'mrad' ? a.mil : a.moa) : null;
     if(v === null || v === undefined) return '—';
-    return fmt(v,2) + ' ' + (unit==='mrad' ? 'mrad' : 'MOA');
+    return fmt(v,2) + ' ' + (unit==='mrad' ? 'MRAD' : 'MOA');
   }
   const raw = s[key];
   if(raw === null || raw === undefined) return '—';
