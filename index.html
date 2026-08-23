@@ -114,9 +114,10 @@
 </header>
 
 <div class="tabbar">
+  <button class="tab-btn" data-tab="guide">Guide</button>
   <button class="tab-btn active" data-tab="setup">Setup</button>
   <button class="tab-btn" data-tab="analysis">Analysis</button>
-  <button class="tab-btn" data-tab="guide">Guide</button>
+  <button class="tab-btn" data-tab="calibration">Calibration</button>
   <button class="tab-btn" data-tab="settings">Settings</button>
 </div>
 
@@ -247,6 +248,10 @@
         <span style="font-size:11px; color:var(--muted); white-space:nowrap;" id="caliberCustomUnit"></span>
       </div>
       <div class="field-row">
+        <label>Ballistic profile</label>
+        <select id="groupProfileSelect"><option value="">— none —</option></select>
+      </div>
+      <div class="field-row">
         <label>Ammo/Load</label>
         <input type="text" id="groupAmmoInput" placeholder="e.g. Hornady ELD-M 140gr">
       </div>
@@ -281,6 +286,14 @@
       <div class="field-row">
         <label>Humidity</label>
         <input type="number" id="groupHumidityInput" step="any" min="0" max="100" placeholder="% optional">
+      </div>
+      <div class="field-row">
+        <label>Pressure</label>
+        <input type="number" id="groupPressureInput" step="any" min="0" placeholder="optional">
+        <select id="groupPressureUnit" style="max-width:70px;">
+          <option value="hPa" selected>hPa</option>
+          <option value="inHg">inHg</option>
+        </select>
       </div>
       <div class="field-row">
         <label>Wind</label>
@@ -336,6 +349,38 @@
 
     <div class="panel">
       <div class="section-title">ZERO CHECK</div>
+      <div class="field-row">
+        <label>Units</label>
+        <select id="zeroCheckUnitSelect">
+          <option value="moa">MOA</option>
+          <option value="mrad">MRAD</option>
+          <option value="mm">mm</option>
+          <option value="cm">cm</option>
+          <option value="in">in</option>
+        </select>
+      </div>
+      <div class="field-row" id="zeroCheckRefDistanceRow" style="display:none;">
+        <label>At distance</label>
+        <input type="number" id="zeroCheckRefDistance" step="any" min="0" value="100">
+        <select id="zeroCheckRefDistanceUnit" style="max-width:80px;">
+          <option value="m">m</option>
+          <option value="yd">yd</option>
+          <option value="ft">ft</option>
+        </select>
+      </div>
+      <div class="field-row">
+        <label></label>
+        <label style="display:flex; align-items:center; gap:6px; font-size:11px; color:var(--muted); width:auto;">
+          <input type="checkbox" id="scopeOffsetEnabled" style="width:auto;"> Apply scope offset
+        </label>
+      </div>
+      <div class="field-row" id="scopeOffsetRow" style="display:none;">
+        <label>Windage</label>
+        <input type="number" id="scopeOffsetWindage" step="any" placeholder="MOA, +right">
+        <label style="min-width:auto; margin-left:4px;">Elevation</label>
+        <input type="number" id="scopeOffsetElevation" step="any" placeholder="MOA, +high">
+      </div>
+      <div class="hint" style="margin:-2px 0 10px;">If you've already dialed a known correction into your scope to preserve your point of aim, enter it here (MOA, same +right/+high convention used elsewhere) — Zero Check will report drift relative to that adjusted baseline instead of raw zero.</div>
       <div id="zeroCheckBody"></div>
     </div>
   </div>
@@ -473,6 +518,159 @@
   </div>
 </div>
 
+<!-- ================= CALIBRATION TAB ================= -->
+<div class="analysis-grid tab-content" id="tab-calibration" style="display:none;">
+
+  <div>
+    <div class="panel" style="margin-bottom:14px;">
+      <div class="section-title">BALLISTIC PROFILES</div>
+      <div class="hint" style="margin-bottom:10px;">A profile represents one rifle+load combination — its own MV, BC, drag model, and rifle geometry. Simplified point-mass model (no spin drift, Coriolis, or aerodynamic jump); sanity-check against a trusted reference before relying on it for real dope.</div>
+      <div class="field-row"><label>Name</label><input type="text" id="profileNameInput" placeholder="e.g. 6.5CM 140gr ELD-M"></div>
+      <div class="field-row">
+        <label>MV</label>
+        <input type="number" id="profileMvInput" step="any" min="0" placeholder="muzzle velocity">
+        <select id="profileMvUnit" style="max-width:70px;">
+          <option value="fps">fps</option>
+          <option value="mps" selected>m/s</option>
+        </select>
+      </div>
+      <div class="field-row"><label>BC</label><input type="number" id="profileBcInput" step="any" min="0" placeholder="e.g. 0.315"></div>
+      <div class="field-row">
+        <label>Drag model</label>
+        <select id="profileDragModel">
+          <option value="" selected disabled>— select —</option>
+          <option value="G1">G1</option>
+          <option value="G7">G7</option>
+        </select>
+      </div>
+      <div class="field-row"><label>Bullet wt.</label><input type="number" id="profileWeightInput" step="any" min="0" placeholder="grains (optional)"></div>
+      <div class="field-row">
+        <label>Zero dist.</label>
+        <input type="number" id="profileZeroDistInput" step="any" min="0" value="100">
+        <select id="profileZeroDistUnit" style="max-width:70px;">
+          <option value="m" selected>m</option>
+          <option value="yd">yd</option>
+          <option value="ft">ft</option>
+        </select>
+      </div>
+      <div class="field-row">
+        <label>Sight ht.</label>
+        <input type="number" id="profileSightHeightInput" step="any" min="0" value="40">
+        <select id="profileSightHeightUnit" style="max-width:70px;">
+          <option value="mm" selected>mm</option>
+          <option value="cm">cm</option>
+          <option value="in">in</option>
+        </select>
+      </div>
+      <div class="field-row" style="align-items:flex-start;"><label style="padding-top:6px;">Notes</label><textarea id="profileNotesInput" rows="2" placeholder="optional"></textarea></div>
+      <div id="profileFormStatus" class="hint" style="color:var(--bad); min-height:14px;"></div>
+      <div class="toolbar">
+        <button id="profileSaveBtn" class="primary" style="flex:1;">SAVE PROFILE</button>
+        <button id="profileCancelBtn" style="display:none;">CANCEL</button>
+      </div>
+      <div class="divider"></div>
+      <div class="group-list" id="profileList"></div>
+      <div class="empty-note" id="profileEmpty">No profiles yet.</div>
+    </div>
+  </div>
+
+  <div>
+    <div class="panel" style="margin-bottom:14px;">
+      <div class="section-title">TRUE YOUR BALLISTICS</div>
+      <div class="field-row">
+        <label>Profile</label>
+        <select id="truingProfileSelect"><option value="">— select a profile —</option></select>
+      </div>
+      <div class="hint" style="margin:-6px 0 10px;">If any saved groups are linked to this profile (set per-group in Setup), only those show below — otherwise all eligible groups do.</div>
+      <div class="field-row">
+        <label>Mode</label>
+        <div class="mode-group">
+          <button id="truingModeSingleBtn" class="active" type="button">SINGLE GROUP</button>
+          <button id="truingModeMultiBtn" type="button">MULTI-GROUP FIT</button>
+        </div>
+      </div>
+
+      <div id="truingSingleBlock">
+        <div class="field-row">
+          <label>Long-range grp</label>
+          <select id="truingGroupSelect"><option value="">— select a group —</option></select>
+        </div>
+        <div class="field-row">
+          <label>Solve for</label>
+          <div class="mode-group">
+            <button id="solveForBcBtn" class="active" type="button">BC</button>
+            <button id="solveForMvBtn" type="button">MV</button>
+          </div>
+        </div>
+        <button id="trueSingleBtn" class="primary" style="width:100%;">CALCULATE</button>
+        <div id="truingSingleResult" style="margin-top:10px;"></div>
+      </div>
+
+      <div id="truingMultiBlock" style="display:none;">
+        <div class="hint" style="margin-bottom:8px;">Select two or more long-range groups, ideally at different distances, for a combined MV+BC fit.</div>
+        <div class="group-list" id="truingMultiGroupList" style="max-height:220px;"></div>
+        <button id="trueMultiBtn" class="primary" style="width:100%; margin-top:8px;">CALCULATE (FIT MV &amp; BC)</button>
+        <div id="truingMultiResult" style="margin-top:10px;"></div>
+      </div>
+
+      <div class="divider"></div>
+      <div class="section-title" style="font-size:11px;">TRUING HISTORY</div>
+      <div class="field-row">
+        <label>Show</label>
+        <div class="mode-group">
+          <button id="historyShowBcBtn" class="active" type="button">BC</button>
+          <button id="historyShowMvBtn" type="button">MV</button>
+        </div>
+      </div>
+      <div class="canvas-holder" style="min-height:160px;">
+        <canvas id="historyCanvas" width="600" height="160"></canvas>
+      </div>
+      <div class="hint" id="historyHint" style="margin-top:6px;"></div>
+    </div>
+
+    <div class="panel">
+      <div class="section-title">DOPE CARD</div>
+      <div class="field-row">
+        <label>Profile</label>
+        <select id="dopeProfileSelect"><option value="">— select a profile —</option></select>
+      </div>
+      <div class="field-row">
+        <label>From</label>
+        <input type="number" id="dopeFromInput" step="any" min="0" value="100">
+        <label style="min-width:auto; margin-left:4px;">To</label>
+        <input type="number" id="dopeToInput" step="any" min="0" value="1000">
+        <select id="dopeDistUnit" style="max-width:70px;">
+          <option value="m" selected>m</option>
+          <option value="yd">yd</option>
+        </select>
+      </div>
+      <div class="field-row">
+        <label>Step</label>
+        <input type="number" id="dopeStepInput" step="any" min="1" value="100">
+        <label style="min-width:auto; margin-left:4px;">Atmos.</label>
+        <select id="dopeAtmosSource" style="max-width:140px;">
+          <option value="standard">Standard atmosphere</option>
+          <option value="custom">Custom (below)</option>
+        </select>
+      </div>
+      <div class="field-row" id="dopeCustomAtmosRow" style="display:none;">
+        <label>T / RH / P</label>
+        <input type="number" id="dopeTempInput" step="any" placeholder="°C" style="max-width:70px;">
+        <input type="number" id="dopeHumidityInput" step="any" min="0" max="100" placeholder="%" style="max-width:60px;">
+        <input type="number" id="dopePressureInput" step="any" placeholder="hPa" style="max-width:80px;">
+      </div>
+      <div class="field-row">
+        <label>MV SD</label>
+        <input type="number" id="dopeMvSdInput" step="any" min="0" placeholder="optional, fps">
+      </div>
+      <div class="hint" style="margin:-6px 0 10px;">Auto-suggested from velocity data on groups linked to this profile — shows a ± drop range reflecting real shot-to-shot velocity spread. Clear it to hide the range.</div>
+      <button id="dopeGenerateBtn" style="width:100%;">GENERATE</button>
+      <div id="dopeCardResult" style="margin-top:10px;"></div>
+      <button id="dopeExportBtn" style="width:100%; margin-top:8px; display:none;">EXPORT CSV</button>
+    </div>
+  </div>
+</div>
+
 <!-- ================= GUIDE TAB ================= -->
 <div class="guide-wrap tab-content" id="tab-guide" style="display:none;">
 
@@ -534,7 +732,8 @@
     <p>Every group's key numbers side by side, including Dispersion, with its own unit selector — mm/cm/in for linear, or mrad/MOA for angular (using each group's own distance; groups without a distance show "—" in angular mode). Tightest and loosest groups are highlighted automatically.</p>
 
     <h3>Zero Check</h3>
-    <p>Pools windage/elevation across every single group with both a point of aim and a distance — a quick check on whether your zero is holding steady across sessions. Each group has an "Include in Zero Check" toggle (on by default) so load-development groups — shot to compare charges or seating depths, not to confirm your zero — don't skew the pooled result. Excluded groups show a "NOT ZEROED" badge in the group list.</p>
+    <p>Pools windage/elevation across every single group with both a point of aim and a distance — a quick check on whether your zero is holding steady across sessions. Each group has an "Include in Zero Check" toggle (on by default) so load-development groups — shot to compare charges or seating depths, not to confirm your zero — don't skew the pooled result. Excluded groups show a "NOT ZEROED" badge in the group list. View results in MOA, MRAD, or a linear unit (mm/cm/in, converted at a distance you set) — same unit options used elsewhere in the app.</p>
+    <p><strong>Scope offset:</strong> if you've already dialed a known correction into your scope to preserve your point of aim — rather than re-zeroing — enter that correction (MOA windage/elevation) under "Apply scope offset." Zero Check will then report drift relative to that adjusted baseline instead of raw zero, so it reflects where your rifle actually sits right now.</p>
 
     <h3>Trend &amp; ladder charts</h3>
     <p>Plots a chosen metric — group size stats, Dispersion, or velocity average/SD — against your choice of x-axis: save order (chronological), Charge, or Seating depth. Charge and Seating modes only include groups where that field is set, order by it, and label each point with its value — the classic ladder/OCW-test chart for spotting a flat "node" while developing a load. Units are shown directly on the chart axis and can be set independently of your marking unit — mm/cm/in, or mrad/MOA (using each group's own distance; groups lacking one are excluded from that view rather than shown wrong).</p>
@@ -548,6 +747,9 @@
 
     <h3>Settings</h3>
     <p>Set your default measurement, distance, and velocity units so new groups start with what you normally use.</p>
+
+    <h3>Calibration</h3>
+    <p>A separate tool for exterior-ballistics truing — not group geometry. Build a <strong>Ballistic Profile</strong> for a rifle+load (MV, BC, drag model, zero distance, sight height), then compare a long-range group against what the profile predicts. If there's a mismatch, solve for a corrected MV or BC — from one group, or from several at different distances for a combined fit — and generate a Dope Card from the result. This uses a simplified point-mass model (no spin drift, Coriolis, or aerodynamic jump) built from public-domain drag data and independently checked against published trajectory figures — treat it as a solid starting point, not a replacement for verifying your own dope on paper.</p>
   </div>
 
   <div class="guide-section">
@@ -681,6 +883,13 @@ function switchTab(name){
   activeTab = name;
   if(name === 'analysis'){ renderGroupList(); renderCompareTable(); }
   if(name === 'setup'){ draw(); }
+  if(name === 'calibration'){
+    renderProfileList();
+    populateProfileSelects();
+    populateTruingGroupSelect();
+    if(truingMode === 'multi') renderTruingMultiGroupList();
+    renderTruingHistory();
+  }
 }
 document.querySelectorAll('.tab-btn').forEach(btn=>{
   btn.addEventListener('click', ()=> switchTab(btn.dataset.tab));
@@ -1451,6 +1660,7 @@ async function startEditGroup(g){
   document.getElementById('groupDistanceUnit').value = g.distanceUnit || 'm';
   setCaliberSelectFromMM(g.caliberMM);
   document.getElementById('groupAmmoInput').value = g.ammo || '';
+  document.getElementById('groupProfileSelect').value = g.profileId || '';
   document.getElementById('groupChargeInput').value = g.charge ?? '';
   document.getElementById('groupSeatingInput').value = g.seating ?? '';
   document.getElementById('groupSeatingUnit').value = g.seatingUnit || 'mm';
@@ -1460,6 +1670,8 @@ async function startEditGroup(g){
   document.getElementById('groupTempInput').value = g.temp ?? '';
   document.getElementById('groupTempUnit').value = g.tempUnit || 'C';
   document.getElementById('groupHumidityInput').value = g.humidity ?? '';
+  document.getElementById('groupPressureInput').value = g.pressure ?? '';
+  document.getElementById('groupPressureUnit').value = g.pressureUnit || 'hPa';
   document.getElementById('groupWindInput').value = g.wind || '';
   document.getElementById('includeZeroCheckInput').checked = g.includeInZeroCheck !== false;
 
@@ -1481,12 +1693,14 @@ function clearCurrentGroupFields(){
   document.getElementById('groupNameInput').value = '';
   document.getElementById('groupTagsInput').value = '';
   document.getElementById('groupAmmoInput').value = '';
+  document.getElementById('groupProfileSelect').value = '';
   document.getElementById('groupChargeInput').value = '';
   document.getElementById('groupSeatingInput').value = '';
   document.getElementById('groupNotesInput').value = '';
   document.getElementById('groupVelocitiesInput').value = '';
   document.getElementById('groupTempInput').value = '';
   document.getElementById('groupHumidityInput').value = '';
+  document.getElementById('groupPressureInput').value = '';
   document.getElementById('groupWindInput').value = '';
   document.getElementById('caliberSelect').value = 'none';
   document.getElementById('caliberCustomRow').style.display = 'none';
@@ -1740,6 +1954,8 @@ document.getElementById('saveGroupBtn').addEventListener('click', async ()=>{
   const distUnit = document.getElementById('groupDistanceUnit').value;
   const velocities = parseVelocities(document.getElementById('groupVelocitiesInput').value);
   const ammo = document.getElementById('groupAmmoInput').value.trim() || null;
+  const profileSelectVal = document.getElementById('groupProfileSelect').value;
+  const profileId = profileSelectVal ? Number(profileSelectVal) : null;
   const charge = parseFloat(document.getElementById('groupChargeInput').value) || null;
   const seating = parseFloat(document.getElementById('groupSeatingInput').value) || null;
   const seatingUnit = document.getElementById('groupSeatingUnit').value;
@@ -1752,6 +1968,9 @@ document.getElementById('saveGroupBtn').addEventListener('click', async ()=>{
   const tempUnit = document.getElementById('groupTempUnit').value;
   const humidity = parseFloat(document.getElementById('groupHumidityInput').value);
   const humidityVal = isNaN(humidity) ? null : humidity;
+  const pressure = parseFloat(document.getElementById('groupPressureInput').value);
+  const pressureVal = isNaN(pressure) ? null : pressure;
+  const pressureUnit = document.getElementById('groupPressureUnit').value;
   const wind = document.getElementById('groupWindInput').value.trim() || null;
   const includeInZeroCheck = document.getElementById('includeZeroCheckInput').checked;
 
@@ -1762,8 +1981,8 @@ document.getElementById('saveGroupBtn').addEventListener('click', async ()=>{
         ...groups[idx],
         name, unit, shotsReal, aimReal, coldBoreReal,
         distance: distVal, distanceUnit: distVal ? distUnit : null,
-        caliberMM, ammo, charge, seating, seatingUnit, notes, tags, velocities, velocityUnit,
-        temp: tempVal, tempUnit, humidity: humidityVal, wind, includeInZeroCheck
+        caliberMM, ammo, profileId, charge, seating, seatingUnit, notes, tags, velocities, velocityUnit,
+        temp: tempVal, tempUnit, humidity: humidityVal, pressure: pressureVal, pressureUnit, wind, includeInZeroCheck
       };
     }
     editingGroupId = null;
@@ -1781,9 +2000,9 @@ document.getElementById('saveGroupBtn').addEventListener('click', async ()=>{
     groups.push({
       id: Date.now(), name, type:'single', unit, shotsReal, aimReal, coldBoreReal,
       distance: distVal, distanceUnit: distVal ? distUnit : null,
-      caliberMM, sourceGroupIds: null,
+      caliberMM, sourceGroupIds: null, profileId,
       ammo, charge, seating, seatingUnit, notes, tags, velocities, velocityUnit,
-      temp: tempVal, tempUnit, humidity: humidityVal, wind, includeInZeroCheck,
+      temp: tempVal, tempUnit, humidity: humidityVal, pressure: pressureVal, pressureUnit, wind, includeInZeroCheck,
       image: imageRef
     });
   }
@@ -1885,6 +2104,7 @@ function renderGroupList(){
     if(g.seating) metaLines.push(`<div><strong>Seating:</strong> ${g.seating} ${g.seatingUnit||'mm'}</div>`);
     if(g.temp!==null && g.temp!==undefined) metaLines.push(`<div><strong>Temp:</strong> ${g.temp}°${g.tempUnit||'C'}</div>`);
     if(g.humidity!==null && g.humidity!==undefined) metaLines.push(`<div><strong>Humidity:</strong> ${g.humidity}%</div>`);
+    if(g.pressure!==null && g.pressure!==undefined) metaLines.push(`<div><strong>Pressure:</strong> ${g.pressure} ${g.pressureUnit||'hPa'}</div>`);
     if(g.wind) metaLines.push(`<div><strong>Wind:</strong> ${escapeHtml(g.wind)}</div>`);
     if(g.notes) metaLines.push(`<div><strong>Notes:</strong> ${escapeHtml(g.notes)}</div>`);
     const metaBlock = metaLines.length ? `<div class="meta-block">${metaLines.join('')}</div>` : '';
@@ -2017,26 +2237,83 @@ document.getElementById('compositeBtn').addEventListener('click', async ()=>{
 });
 
 // ================= Zero Check =================
+const MOA_TO_MIL = 1000/3437.746;
+
+async function loadZeroCheckSettings(){
+  let s = {enabled:false, windage:0, elevation:0, unit:'moa', refDistance:100, refDistanceUnit:'m'};
+  try{
+    const res = await storageGet('downrange:zerocheck:v1', false);
+    if(res && res.value) s = {...s, ...JSON.parse(res.value)};
+  }catch(e){}
+  document.getElementById('scopeOffsetEnabled').checked = s.enabled;
+  document.getElementById('scopeOffsetWindage').value = s.windage || '';
+  document.getElementById('scopeOffsetElevation').value = s.elevation || '';
+  document.getElementById('zeroCheckUnitSelect').value = s.unit;
+  document.getElementById('zeroCheckRefDistance').value = s.refDistance;
+  document.getElementById('zeroCheckRefDistanceUnit').value = s.refDistanceUnit;
+  document.getElementById('scopeOffsetRow').style.display = s.enabled ? 'flex' : 'none';
+  updateZeroCheckRefDistanceVisibility();
+}
+async function persistZeroCheckSettings(){
+  const s = {
+    enabled: document.getElementById('scopeOffsetEnabled').checked,
+    windage: parseFloat(document.getElementById('scopeOffsetWindage').value) || 0,
+    elevation: parseFloat(document.getElementById('scopeOffsetElevation').value) || 0,
+    unit: document.getElementById('zeroCheckUnitSelect').value,
+    refDistance: parseFloat(document.getElementById('zeroCheckRefDistance').value) || 100,
+    refDistanceUnit: document.getElementById('zeroCheckRefDistanceUnit').value
+  };
+  try{ await storageSet('downrange:zerocheck:v1', JSON.stringify(s), false); }
+  catch(e){ console.error('zero check settings storage failed', e); }
+}
+function updateZeroCheckRefDistanceVisibility(){
+  const unit = document.getElementById('zeroCheckUnitSelect').value;
+  const isLinear = unit==='mm' || unit==='cm' || unit==='in';
+  document.getElementById('zeroCheckRefDistanceRow').style.display = isLinear ? 'flex' : 'none';
+}
+document.getElementById('zeroCheckUnitSelect').addEventListener('change', ()=>{
+  updateZeroCheckRefDistanceVisibility(); persistZeroCheckSettings(); renderZeroCheck();
+});
+document.getElementById('zeroCheckRefDistance').addEventListener('input', ()=>{ persistZeroCheckSettings(); renderZeroCheck(); });
+document.getElementById('zeroCheckRefDistanceUnit').addEventListener('change', ()=>{ persistZeroCheckSettings(); renderZeroCheck(); });
+document.getElementById('scopeOffsetEnabled').addEventListener('change', ()=>{
+  document.getElementById('scopeOffsetRow').style.display = document.getElementById('scopeOffsetEnabled').checked ? 'flex' : 'none';
+  persistZeroCheckSettings(); renderZeroCheck();
+});
+document.getElementById('scopeOffsetWindage').addEventListener('input', ()=>{ persistZeroCheckSettings(); renderZeroCheck(); });
+document.getElementById('scopeOffsetElevation').addEventListener('input', ()=>{ persistZeroCheckSettings(); renderZeroCheck(); });
+
 function computeZeroCheck(){
   const eligible = groups.filter(g=> g.type==='single' && g.includeInZeroCheck !== false && g.aimReal && g.distance && g.distanceUnit && g.shotsReal.length>=1);
   if(!eligible.length) return null;
-  const windMoas=[], elevMoas=[], windMils=[], elevMils=[];
+  const windMoas=[], elevMoas=[];
   eligible.forEach(g=>{
     const distanceLinear = distanceToUnit(g.distance, g.distanceUnit, g.unit);
     const s = fullGroupStats(g.shotsReal, g.aimReal, distanceLinear, groupCaliberLinear(g));
-    if(s.ang.windage.moa!==null){ windMoas.push(s.ang.windage.moa); windMils.push(s.ang.windage.mil); }
-    if(s.ang.elevation.moa!==null){ elevMoas.push(s.ang.elevation.moa); elevMils.push(s.ang.elevation.mil); }
+    if(s.ang.windage.moa!==null) windMoas.push(s.ang.windage.moa);
+    if(s.ang.elevation.moa!==null) elevMoas.push(s.ang.elevation.moa);
   });
+
+  const offsetApplied = document.getElementById('scopeOffsetEnabled').checked;
+  const offsetWindageMOA = offsetApplied ? (parseFloat(document.getElementById('scopeOffsetWindage').value) || 0) : 0;
+  const offsetElevationMOA = offsetApplied ? (parseFloat(document.getElementById('scopeOffsetElevation').value) || 0) : 0;
+
+  const windMoaAvgRaw = windMoas.length ? average(windMoas) : null;
+  const elevMoaAvgRaw = elevMoas.length ? average(elevMoas) : null;
+  // SD is a spread measure and is unaffected by subtracting a constant offset — compute
+  // from the raw (pre-offset) values.
+  const windMoaSD = windMoas.length>1 ? stddev(windMoas) : null;
+  const elevMoaSD = elevMoas.length>1 ? stddev(elevMoas) : null;
+
   return {
     n: eligible.length,
-    windMoaAvg: windMoas.length ? average(windMoas) : null,
-    elevMoaAvg: elevMoas.length ? average(elevMoas) : null,
-    windMilAvg: windMils.length ? average(windMils) : null,
-    elevMilAvg: elevMils.length ? average(elevMils) : null,
-    windMoaSD: windMoas.length>1 ? stddev(windMoas) : null,
-    elevMoaSD: elevMoas.length>1 ? stddev(elevMoas) : null
+    windMoaAvg: windMoaAvgRaw!==null ? windMoaAvgRaw - offsetWindageMOA : null,
+    elevMoaAvg: elevMoaAvgRaw!==null ? elevMoaAvgRaw - offsetElevationMOA : null,
+    windMoaSD, elevMoaSD,
+    offsetApplied, offsetWindageMOA, offsetElevationMOA
   };
 }
+
 function renderZeroCheck(){
   const el = document.getElementById('zeroCheckBody');
   const z = computeZeroCheck();
@@ -2044,17 +2321,44 @@ function renderZeroCheck(){
     el.innerHTML = '<div class="empty-note">Need at least one single group with a point of aim, a distance set, and "Include in Zero Check" turned on.</div>';
     return;
   }
+  const unit = document.getElementById('zeroCheckUnitSelect').value;
+  const isLinear = unit==='mm' || unit==='cm' || unit==='in';
+  let refDistanceLinear = null;
+  if(isLinear){
+    const refVal = parseFloat(document.getElementById('zeroCheckRefDistance').value) || 100;
+    const refUnit = document.getElementById('zeroCheckRefDistanceUnit').value;
+    refDistanceLinear = distanceToUnit(refVal, refUnit, unit);
+  }
+  function convertFromMOA(moaVal){
+    if(moaVal===null || moaVal===undefined) return null;
+    if(unit === 'moa') return moaVal;
+    if(unit === 'mrad') return moaVal * MOA_TO_MIL;
+    return (moaVal/3437.746) * refDistanceLinear;
+  }
+  const unitLabel = unit==='moa' ? 'MOA' : unit==='mrad' ? 'MRAD' : unit;
+  const digits = isLinear ? 3 : 2;
+
   const windDir = z.windMoaAvg>0?'LEFT':(z.windMoaAvg<0?'RIGHT':'—');
   const elevDir = z.elevMoaAvg>0?'DOWN':(z.elevMoaAvg<0?'UP':'—');
+  const windVal = convertFromMOA(z.windMoaAvg);
+  const elevVal = convertFromMOA(z.elevMoaAvg);
+  const windSDVal = convertFromMOA(z.windMoaSD);
+  const elevSDVal = convertFromMOA(z.elevMoaSD);
+
+  const offsetNote = z.offsetApplied
+    ? `<div class="hint" style="margin-top:6px; color:var(--brass-bright);">Scope offset applied: ${fmt(z.offsetWindageMOA,2)} MOA windage, ${fmt(z.offsetElevationMOA,2)} MOA elevation — figures below are relative to that adjusted baseline, not raw zero.</div>`
+    : '';
+
   el.innerHTML = `
     <table class="stats-table">
       <tr><td>Groups included</td><td>${z.n}</td></tr>
-      <tr><td>Avg windage shift</td><td>${z.windMoaAvg!==null ? fmt(Math.abs(z.windMilAvg),2)+' MIL / '+fmt(Math.abs(z.windMoaAvg),2)+' MOA '+windDir : '—'}</td></tr>
-      <tr><td>Avg elevation shift</td><td>${z.elevMoaAvg!==null ? fmt(Math.abs(z.elevMilAvg),2)+' MIL / '+fmt(Math.abs(z.elevMoaAvg),2)+' MOA '+elevDir : '—'}</td></tr>
-      <tr><td>Windage consistency (SD)</td><td>${z.windMoaSD!==null ? fmt(z.windMoaSD,2)+' MOA' : '—'}</td></tr>
-      <tr><td>Elevation consistency (SD)</td><td>${z.elevMoaSD!==null ? fmt(z.elevMoaSD,2)+' MOA' : '—'}</td></tr>
+      <tr><td>Avg windage shift</td><td>${windVal!==null ? fmt(Math.abs(windVal),digits)+' '+unitLabel+' '+windDir : '—'}</td></tr>
+      <tr><td>Avg elevation shift</td><td>${elevVal!==null ? fmt(Math.abs(elevVal),digits)+' '+unitLabel+' '+elevDir : '—'}</td></tr>
+      <tr><td>Windage consistency (SD)</td><td>${windSDVal!==null ? fmt(windSDVal,digits)+' '+unitLabel : '—'}</td></tr>
+      <tr><td>Elevation consistency (SD)</td><td>${elevSDVal!==null ? fmt(elevSDVal,digits)+' '+unitLabel : '—'}</td></tr>
     </table>
-    <div class="hint" style="margin-top:6px;">Pooled zero-shift suggestion across every single group with a marked point of aim and distance, excluding any with "Include in Zero Check" turned off. Lower SD means a more consistent zero across sessions.</div>`;
+    <div class="hint" style="margin-top:6px;">Pooled zero-shift suggestion across every single group with a marked point of aim and distance, excluding any with "Include in Zero Check" turned off. Lower SD means a more consistent zero across sessions.</div>
+    ${offsetNote}`;
 }
 
 // ================= Group Summary panel =================
@@ -2552,7 +2856,7 @@ document.getElementById('exportPointsBtn').addEventListener('click', ()=>{
   downloadCSV(rows, 'downrange-points.csv');
 });
 document.getElementById('exportSummaryBtn').addEventListener('click', ()=>{
-  const header = ['group','type','n','unit','max_center_to_center','edge_to_edge_max','mean_radius','width','height','sd_horizontal','sd_vertical','dispersion','avg_dispersion_h','avg_dispersion_v','cep50_measured','cep50_calculated','windage_offset','elevation_offset','total_offset','distance','include_in_zero_check','caliber_mm','ammo','charge_gr','seating','seating_unit','notes','tags','temp','temp_unit','humidity','wind','vel_avg','vel_es','vel_sd','vel_unit'];
+  const header = ['group','type','n','unit','max_center_to_center','edge_to_edge_max','mean_radius','width','height','sd_horizontal','sd_vertical','dispersion','avg_dispersion_h','avg_dispersion_v','cep50_measured','cep50_calculated','windage_offset','elevation_offset','total_offset','distance','include_in_zero_check','caliber_mm','ammo','ballistic_profile','charge_gr','seating','seating_unit','notes','tags','temp','temp_unit','humidity','pressure','pressure_unit','wind','vel_avg','vel_es','vel_sd','vel_unit'];
   let rows = [header];
   groups.forEach(g=>{
     const hasDistance = !!(g.distance && g.distanceUnit);
@@ -2570,12 +2874,14 @@ document.getElementById('exportSummaryBtn').addEventListener('click', ()=>{
       g.type==='single' ? (g.includeInZeroCheck!==false ? 'yes' : 'no') : '',
       g.caliberMM ?? '',
       g.ammo ? `"${String(g.ammo).replace(/"/g,'""')}"` : '',
+      (()=>{ const p = g.profileId!=null ? profiles.find(pr=>pr.id===g.profileId) : null; return p ? `"${String(p.name).replace(/"/g,'""')}"` : ''; })(),
       g.charge ?? '',
       g.seating ?? '', g.seating ? (g.seatingUnit||'mm') : '',
       g.notes ? `"${String(g.notes).replace(/"/g,'""')}"` : '',
       (g.tags&&g.tags.length) ? `"${g.tags.join('; ').replace(/"/g,'""')}"` : '',
       (g.temp!==null&&g.temp!==undefined) ? g.temp : '', (g.temp!==null&&g.temp!==undefined) ? (g.tempUnit||'C') : '',
       (g.humidity!==null&&g.humidity!==undefined) ? g.humidity : '',
+      (g.pressure!==null&&g.pressure!==undefined) ? g.pressure : '', (g.pressure!==null&&g.pressure!==undefined) ? (g.pressureUnit||'hPa') : '',
       g.wind ? `"${String(g.wind).replace(/"/g,'""')}"` : '',
       vel? vel.avg.toFixed(1):'', vel&&vel.es!==null?vel.es:'', vel&&vel.sd!==null?vel.sd.toFixed(2):'',
       g.velocities&&g.velocities.length? g.velocityUnit : ''
@@ -2585,7 +2891,7 @@ document.getElementById('exportSummaryBtn').addEventListener('click', ()=>{
 });
 
 document.getElementById('exportSessionBtn').addEventListener('click', ()=>{
-  const data = JSON.stringify({version:6, exportedAt:new Date().toISOString(), groups, photos}, null, 2);
+  const data = JSON.stringify({version:7, exportedAt:new Date().toISOString(), groups, photos, profiles}, null, 2);
   const blob = new Blob([data], {type:'application/json'});
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -2609,12 +2915,16 @@ document.getElementById('importFile').addEventListener('change', (e)=>{
       if(Array.isArray(parsed.groups)){
         groups = parsed.groups;
         photos = (parsed.photos && typeof parsed.photos === 'object') ? parsed.photos : {};
+        profiles = Array.isArray(parsed.profiles) ? parsed.profiles : [];
         pruneUnusedPhotos();
         await persistGroups();
         await persistPhotos();
+        await persistProfiles();
         renderGroupList();
         renderCompareTable();
-        statusEl.textContent = `Imported ${groups.length} group(s).`;
+        renderProfileList();
+        populateProfileSelects();
+        statusEl.textContent = `Imported ${groups.length} group(s), ${profiles.length} profile(s).`;
       } else {
         statusEl.textContent = 'Import failed: no groups array found in file.';
       }
@@ -2640,6 +2950,618 @@ document.getElementById('introBannerDismiss').addEventListener('click', async ()
   try{ await storageSet('downrange:seenIntro:v1', true, false); }catch(e){}
 });
 
+// ================= Calibration: Ballistics Engine =================
+// Drag data (Mach vs Cd) is public-domain US Army BRL test data, published via
+// JBM Ballistics' downloads (originally provided by Robert McCoy, BRL). This is
+// physical reference data, not source code, and is not derived from any GPL
+// (or otherwise licensed) ballistics library — the deceleration formula below is
+// derived from first principles (standard sectional-density / form-factor
+// cancellation), independently validated against published trajectory data for
+// a well-documented .308 168gr load before being wired into the UI.
+//
+// This is a simplified point-mass model: no spin drift, Coriolis, or aerodynamic
+// jump. Good for elevation truing; sanity-check outputs before relying on them
+// for real field dope.
+const G1_TABLE = [[0,0.2629],[0.05,0.2558],[0.1,0.2487],[0.15,0.2413],[0.2,0.2344],[0.25,0.2278],[0.3,0.2214],[0.35,0.2155],[0.4,0.2104],[0.45,0.2061],[0.5,0.2032],[0.55,0.202],[0.6,0.2034],[0.7,0.2165],[0.725,0.223],[0.75,0.2313],[0.775,0.2417],[0.8,0.2546],[0.825,0.2706],[0.85,0.2901],[0.875,0.3136],[0.9,0.3415],[0.925,0.3734],[0.95,0.4084],[0.975,0.4448],[1.0,0.4805],[1.025,0.5136],[1.05,0.5427],[1.075,0.5677],[1.1,0.5883],[1.125,0.6053],[1.15,0.6191],[1.2,0.6393],[1.25,0.6518],[1.3,0.6589],[1.35,0.6621],[1.4,0.6625],[1.45,0.6607],[1.5,0.6573],[1.55,0.6528],[1.6,0.6474],[1.65,0.6413],[1.7,0.6347],[1.75,0.628],[1.8,0.621],[1.85,0.6141],[1.9,0.6072],[1.95,0.6003],[2.0,0.5934],[2.05,0.5867],[2.1,0.5804],[2.15,0.5743],[2.2,0.5685],[2.25,0.563],[2.3,0.5577],[2.35,0.5527],[2.4,0.5481],[2.45,0.5438],[2.5,0.5397],[2.6,0.5325],[2.7,0.5264],[2.8,0.5211],[2.9,0.5168],[3.0,0.5133],[3.1,0.5105],[3.2,0.5084],[3.3,0.5067],[3.4,0.5054],[3.5,0.504],[3.6,0.503],[3.7,0.5022],[3.8,0.5016],[3.9,0.501],[4.0,0.5006],[4.2,0.4998],[4.4,0.4995],[4.6,0.4992],[4.8,0.499],[5.0,0.4988]];
+const G7_TABLE = [[0,0.1198],[0.05,0.1197],[0.1,0.1196],[0.15,0.1194],[0.2,0.1193],[0.25,0.1194],[0.3,0.1194],[0.35,0.1194],[0.4,0.1193],[0.45,0.1193],[0.5,0.1194],[0.55,0.1193],[0.6,0.1194],[0.65,0.1197],[0.7,0.1202],[0.725,0.1207],[0.75,0.1215],[0.775,0.1226],[0.8,0.1242],[0.825,0.1266],[0.85,0.1306],[0.875,0.1368],[0.9,0.1464],[0.925,0.166],[0.95,0.2054],[0.975,0.2993],[1.0,0.3803],[1.025,0.4015],[1.05,0.4043],[1.075,0.4034],[1.1,0.4014],[1.125,0.3987],[1.15,0.3955],[1.2,0.3884],[1.25,0.381],[1.3,0.3732],[1.35,0.3657],[1.4,0.358],[1.5,0.344],[1.55,0.3376],[1.6,0.3315],[1.65,0.326],[1.7,0.3209],[1.75,0.316],[1.8,0.3117],[1.85,0.3078],[1.9,0.3042],[1.95,0.301],[2.0,0.298],[2.05,0.2951],[2.1,0.2922],[2.15,0.2892],[2.2,0.2864],[2.25,0.2835],[2.3,0.2807],[2.35,0.2779],[2.4,0.2752],[2.45,0.2725],[2.5,0.2697],[2.55,0.267],[2.6,0.2643],[2.65,0.2615],[2.7,0.2588],[2.75,0.2561],[2.8,0.2533],[2.85,0.2506],[2.9,0.2479],[2.95,0.2451],[3.0,0.2424],[3.1,0.2368],[3.2,0.2313],[3.3,0.2258],[3.4,0.2205],[3.5,0.2154],[3.6,0.2106],[3.7,0.206],[3.8,0.2017],[3.9,0.1975],[4.0,0.1935],[4.2,0.1861],[4.4,0.1793],[4.6,0.173],[4.8,0.1672],[5.0,0.1618]];
+
+function cdAtMach(table, mach){
+  if(mach <= table[0][0]) return table[0][1];
+  if(mach >= table[table.length-1][0]) return table[table.length-1][1];
+  for(let i=0;i<table.length-1;i++){
+    const m0=table[i][0], c0=table[i][1], m1=table[i+1][0], c1=table[i+1][1];
+    if(mach>=m0 && mach<=m1){
+      const frac=(mach-m0)/(m1-m0);
+      return c0+frac*(c1-c0);
+    }
+  }
+  return table[table.length-1][1];
+}
+function airDensityRatioBallistic(tempC, pressureHPa, humidityPct){
+  const T = tempC+273.15;
+  const es = 6.1078*Math.pow(10, (7.5*tempC)/(tempC+237.3));
+  const pv = (humidityPct/100)*es;
+  const pd = pressureHPa-pv;
+  const Rd=287.05, Rv=461.495;
+  const rho = (pd*100)/(Rd*T) + (pv*100)/(Rv*T);
+  return rho/1.225;
+}
+function speedOfSoundFpsBallistic(tempC){ return 20.05*Math.sqrt(tempC+273.15)*3.28084; }
+
+const BALLISTIC_K = 0.5*Math.PI*32.174/(4*144);
+const RHO_STD_SLUG = 0.0023769;
+
+function simulateAngled(mvFps, bc, dragTable, densityRatioVal, tempC, launchAngleRad, maxRangeFt, dt){
+  dt = dt || 0.0008;
+  let x=0, y=0;
+  let vx = mvFps*Math.cos(launchAngleRad);
+  let vy = -mvFps*Math.sin(launchAngleRad);
+  let t=0;
+  const rho = RHO_STD_SLUG*densityRatioVal;
+  const soundFps = speedOfSoundFpsBallistic(tempC);
+  const trace = [];
+  let iter = 0;
+  while(x<maxRangeFt && t<20 && iter<300000){
+    const speed = Math.sqrt(vx*vx+vy*vy);
+    const mach = speed/soundFps;
+    const cd = cdAtMach(dragTable, mach);
+    const aDrag = BALLISTIC_K*rho*speed*speed*cd/bc;
+    const ax = speed>0 ? -aDrag*(vx/speed) : 0;
+    const ay = speed>0 ? (-aDrag*(vy/speed)+32.174) : 32.174;
+    x += vx*dt+0.5*ax*dt*dt;
+    y += vy*dt+0.5*ay*dt*dt;
+    vx += ax*dt;
+    vy += ay*dt;
+    t += dt;
+    trace.push({x,y,v:speed,t});
+    iter++;
+  }
+  return trace;
+}
+function yAtRangeFt(trace, targetFt){
+  let prev=null;
+  for(const pt of trace){
+    if(pt.x>=targetFt){
+      if(!prev) return {y:pt.y, v:pt.v, t:pt.t};
+      const frac = (pt.x!==prev.x) ? (targetFt-prev.x)/(pt.x-prev.x) : 0;
+      return { y: prev.y+frac*(pt.y-prev.y), v: prev.v+frac*(pt.v-prev.v), t: prev.t+frac*(pt.t-prev.t) };
+    }
+    prev = pt;
+  }
+  return {y:null, v:null, t:null};
+}
+function solveZeroAngle(mvFps, bc, dragTable, densityRatioVal, tempC, zeroRangeYd, dt){
+  const targetFt = zeroRangeYd*3;
+  let lo=-0.01, hi=0.05;
+  for(let i=0;i<26;i++){
+    const mid=(lo+hi)/2;
+    const trace = simulateAngled(mvFps, bc, dragTable, densityRatioVal, tempC, mid, targetFt+5, dt);
+    const r = yAtRangeFt(trace, targetFt);
+    if(r.y===null){ hi=mid; continue; }
+    if(r.y>0) lo=mid; else hi=mid;
+  }
+  return (lo+hi)/2;
+}
+function dropRelativeToZeroFt(mvFps, bc, dragModel, tempC, pressureHPa, humidityPct, zeroRangeYd, targetRangeYd, dt){
+  const table = dragModel==='G7' ? G7_TABLE : G1_TABLE;
+  const dr = airDensityRatioBallistic(tempC, pressureHPa, humidityPct);
+  const angle = solveZeroAngle(mvFps, bc, table, dr, tempC, zeroRangeYd, dt);
+  const trace = simulateAngled(mvFps, bc, table, dr, tempC, angle, targetRangeYd*3+5, dt);
+  const r = yAtRangeFt(trace, targetRangeYd*3);
+  return {dropFt:r.y, velFps:r.v, timeS:r.t, angleRad:angle};
+}
+function distanceToFeet(value, unit){
+  const mm = value * DIST_UNIT_TO_MM[unit];
+  return mm/304.8;
+}
+
+// ================= Calibration: Ballistic Profiles =================
+let profiles = [];
+let editingProfileId = null;
+
+async function loadProfiles(){
+  try{
+    const res = await storageGet('downrange:profiles:v1', false);
+    if(res && res.value) profiles = JSON.parse(res.value);
+  }catch(e){ profiles = []; }
+  renderProfileList();
+  populateProfileSelects();
+}
+async function persistProfiles(){
+  try{ await storageSet('downrange:profiles:v1', JSON.stringify(profiles), false); }
+  catch(e){ console.error('profiles storage failed', e); }
+}
+function showProfileError(msg){
+  const el = document.getElementById('profileFormStatus');
+  el.textContent = msg;
+  setTimeout(()=>{ el.textContent=''; }, 5000);
+}
+function clearProfileForm(){
+  editingProfileId = null;
+  document.getElementById('profileNameInput').value = '';
+  document.getElementById('profileMvInput').value = '';
+  document.getElementById('profileBcInput').value = '';
+  document.getElementById('profileDragModel').value = '';
+  document.getElementById('profileWeightInput').value = '';
+  document.getElementById('profileZeroDistInput').value = '100';
+  document.getElementById('profileSightHeightInput').value = '40';
+  document.getElementById('profileNotesInput').value = '';
+  document.getElementById('profileSaveBtn').textContent = 'SAVE PROFILE';
+  document.getElementById('profileCancelBtn').style.display = 'none';
+}
+function startEditProfile(p){
+  editingProfileId = p.id;
+  document.getElementById('profileNameInput').value = p.name;
+  document.getElementById('profileMvInput').value = p.mv;
+  document.getElementById('profileMvUnit').value = p.mvUnit;
+  document.getElementById('profileBcInput').value = p.bc;
+  document.getElementById('profileDragModel').value = p.dragModel;
+  document.getElementById('profileWeightInput').value = p.bulletWeight ?? '';
+  document.getElementById('profileZeroDistInput').value = p.zeroDistance;
+  document.getElementById('profileZeroDistUnit').value = p.zeroDistanceUnit;
+  document.getElementById('profileSightHeightInput').value = p.sightHeight;
+  document.getElementById('profileSightHeightUnit').value = p.sightHeightUnit;
+  document.getElementById('profileNotesInput').value = p.notes || '';
+  document.getElementById('profileSaveBtn').textContent = 'UPDATE PROFILE';
+  document.getElementById('profileCancelBtn').style.display = 'inline-block';
+}
+document.getElementById('profileCancelBtn').addEventListener('click', clearProfileForm);
+document.getElementById('profileSaveBtn').addEventListener('click', async ()=>{
+  const name = document.getElementById('profileNameInput').value.trim();
+  const mv = parseFloat(document.getElementById('profileMvInput').value);
+  const mvUnit = document.getElementById('profileMvUnit').value;
+  const bc = parseFloat(document.getElementById('profileBcInput').value);
+  const dragModel = document.getElementById('profileDragModel').value;
+  const bulletWeight = parseFloat(document.getElementById('profileWeightInput').value) || null;
+  const zeroDistance = parseFloat(document.getElementById('profileZeroDistInput').value) || 100;
+  const zeroDistanceUnit = document.getElementById('profileZeroDistUnit').value;
+  const sightHeight = parseFloat(document.getElementById('profileSightHeightInput').value) || 0;
+  const sightHeightUnit = document.getElementById('profileSightHeightUnit').value;
+  const notes = document.getElementById('profileNotesInput').value.trim() || null;
+
+  if(!name){ showProfileError('Name is required.'); return; }
+  if(!mv || mv<=0){ showProfileError('Enter a valid muzzle velocity.'); return; }
+  if(!bc || bc<=0){ showProfileError('Enter a valid BC.'); return; }
+  if(!dragModel){ showProfileError('Select a drag model (G1 or G7).'); return; }
+
+  if(editingProfileId){
+    const idx = profiles.findIndex(p=>p.id===editingProfileId);
+    if(idx>=0) profiles[idx] = {...profiles[idx], name, mv, mvUnit, bc, dragModel, bulletWeight, zeroDistance, zeroDistanceUnit, sightHeight, sightHeightUnit, notes};
+  } else {
+    profiles.push({id:Date.now(), name, mv, mvUnit, bc, dragModel, bulletWeight, zeroDistance, zeroDistanceUnit, sightHeight, sightHeightUnit, notes});
+  }
+  await persistProfiles();
+  renderProfileList();
+  populateProfileSelects();
+  clearProfileForm();
+});
+function renderProfileList(){
+  const list = document.getElementById('profileList');
+  const empty = document.getElementById('profileEmpty');
+  if(!profiles.length){ list.innerHTML=''; empty.style.display='block'; return; }
+  empty.style.display='none';
+  list.innerHTML = profiles.map(p=>`
+    <div class="group-card">
+      <div class="group-card-header" data-toggle-profile="${p.id}">
+        <span class="name">${escapeHtml(p.name)}</span>
+        <span class="type-tag single">${p.dragModel}</span>
+        <span class="count">${fmt(p.mv,0)} ${p.mvUnit} · BC ${fmt(p.bc,3)}</span>
+        <button data-edit-profile="${p.id}">EDIT</button>
+        <button data-del-profile="${p.id}">✕</button>
+      </div>
+    </div>`).join('');
+  list.querySelectorAll('[data-edit-profile]').forEach(btn=>{
+    btn.addEventListener('click', (e)=>{ e.stopPropagation(); const p=profiles.find(x=>x.id===Number(btn.dataset.editProfile)); if(p) startEditProfile(p); });
+  });
+  list.querySelectorAll('[data-del-profile]').forEach(btn=>{
+    btn.addEventListener('click', async (e)=>{
+      e.stopPropagation();
+      profiles = profiles.filter(p=>p.id!==Number(btn.dataset.delProfile));
+      await persistProfiles();
+      renderProfileList();
+      populateProfileSelects();
+    });
+  });
+}
+function populateProfileSelects(){
+  const optsHtml = '<option value="">— select a profile —</option>' + profiles.map(p=>`<option value="${p.id}">${escapeHtml(p.name)} (${p.dragModel})</option>`).join('');
+  ['truingProfileSelect','dopeProfileSelect'].forEach(id=>{
+    const sel = document.getElementById(id);
+    const prev = sel.value;
+    sel.innerHTML = optsHtml;
+    if([...sel.options].some(o=>o.value===prev)) sel.value = prev;
+  });
+  const groupSel = document.getElementById('groupProfileSelect');
+  const groupPrev = groupSel.value;
+  groupSel.innerHTML = '<option value="">— none —</option>' + profiles.map(p=>`<option value="${p.id}">${escapeHtml(p.name)} (${p.dragModel})</option>`).join('');
+  if([...groupSel.options].some(o=>o.value===groupPrev)) groupSel.value = groupPrev;
+}
+
+// ================= Calibration: Truing =================
+let truingMode = 'single';
+let truingSolveFor = 'bc';
+
+document.getElementById('truingModeSingleBtn').addEventListener('click', ()=>{
+  truingMode='single';
+  document.getElementById('truingModeSingleBtn').classList.add('active');
+  document.getElementById('truingModeMultiBtn').classList.remove('active');
+  document.getElementById('truingSingleBlock').style.display='block';
+  document.getElementById('truingMultiBlock').style.display='none';
+});
+document.getElementById('truingModeMultiBtn').addEventListener('click', ()=>{
+  truingMode='multi';
+  document.getElementById('truingModeMultiBtn').classList.add('active');
+  document.getElementById('truingModeSingleBtn').classList.remove('active');
+  document.getElementById('truingSingleBlock').style.display='none';
+  document.getElementById('truingMultiBlock').style.display='block';
+  renderTruingMultiGroupList();
+});
+document.getElementById('solveForBcBtn').addEventListener('click', ()=>{
+  truingSolveFor='bc';
+  document.getElementById('solveForBcBtn').classList.add('active');
+  document.getElementById('solveForMvBtn').classList.remove('active');
+});
+document.getElementById('solveForMvBtn').addEventListener('click', ()=>{
+  truingSolveFor='mv';
+  document.getElementById('solveForMvBtn').classList.add('active');
+  document.getElementById('solveForBcBtn').classList.remove('active');
+});
+document.getElementById('truingProfileSelect').addEventListener('change', ()=>{
+  populateTruingGroupSelect();
+  if(truingMode === 'multi') renderTruingMultiGroupList();
+  renderTruingHistory();
+});
+
+// ---- Truing history (tracks every applied MV/BC solve, per profile) ----
+let historyShowMetric = 'bc';
+document.getElementById('historyShowBcBtn').addEventListener('click', ()=>{
+  historyShowMetric='bc';
+  document.getElementById('historyShowBcBtn').classList.add('active');
+  document.getElementById('historyShowMvBtn').classList.remove('active');
+  renderTruingHistory();
+});
+document.getElementById('historyShowMvBtn').addEventListener('click', ()=>{
+  historyShowMetric='mv';
+  document.getElementById('historyShowMvBtn').classList.add('active');
+  document.getElementById('historyShowBcBtn').classList.remove('active');
+  renderTruingHistory();
+});
+function renderTruingHistory(){
+  const canvas = document.getElementById('historyCanvas');
+  const hctx = canvas.getContext('2d');
+  const W=canvas.width, H=canvas.height;
+  hctx.clearRect(0,0,W,H);
+  hctx.fillStyle='#EDE7D9'; hctx.fillRect(0,0,W,H);
+  const hintEl = document.getElementById('historyHint');
+  const profileId = document.getElementById('truingProfileSelect').value;
+  if(!profileId){ hintEl.textContent=''; return; }
+  const profile = profiles.find(p=>String(p.id)===profileId);
+  const hist = (profile && profile.history) || [];
+  if(hist.length<2){
+    hctx.fillStyle='#9A9284'; hctx.font='11px "IBM Plex Mono"'; hctx.textAlign='center';
+    hctx.fillText('Need at least 2 applied truing events to show history.', W/2, H/2);
+    hctx.textAlign='left';
+    hintEl.textContent='';
+    return;
+  }
+  const values = hist.map(h=> historyShowMetric==='bc' ? h.bc : (h.mvUnit==='fps' ? h.mv : convertVelocity(h.mv,'mps','fps')));
+  const minV=Math.min(...values), maxV=Math.max(...values);
+  const pad=(maxV-minV)*0.15 || Math.max(minV*0.05, 0.01);
+  const lo=minV-pad, hi=maxV+pad;
+  const marginL=42, marginR=10, marginT=10, marginB=10;
+  const plotW=W-marginL-marginR, plotH=H-marginT-marginB;
+  const xFor=(i)=> marginL+(hist.length>1?(i/(hist.length-1))*plotW:plotW/2);
+  const yFor=(v)=> marginT+(hi>lo?(1-(v-lo)/(hi-lo)):0.5)*plotH;
+  hctx.strokeStyle='rgba(0,0,0,0.2)'; hctx.lineWidth=1;
+  hctx.beginPath(); hctx.moveTo(marginL,marginT); hctx.lineTo(marginL,H-marginB); hctx.lineTo(W-marginR,H-marginB); hctx.stroke();
+  hctx.strokeStyle='#B8793A'; hctx.lineWidth=2;
+  hctx.beginPath();
+  values.forEach((v,i)=>{ const x=xFor(i), y=yFor(v); if(i===0) hctx.moveTo(x,y); else hctx.lineTo(x,y); });
+  hctx.stroke();
+  values.forEach((v,i)=>{ const x=xFor(i), y=yFor(v); hctx.fillStyle='#D64B2A'; hctx.beginPath(); hctx.arc(x,y,3,0,Math.PI*2); hctx.fill(); });
+  hctx.fillStyle='#6B665B'; hctx.font='9px "IBM Plex Mono"'; hctx.textAlign='right';
+  hctx.fillText(fmt(hi, historyShowMetric==='bc'?4:0), marginL-4, marginT+8);
+  hctx.fillText(fmt(lo, historyShowMetric==='bc'?4:0), marginL-4, H-marginB);
+  hctx.textAlign='left';
+  hintEl.textContent = `${hist.length} applied truing event(s) for this profile`;
+}
+
+function getEligibleLongRangeGroups(profileId){
+  const base = groups.filter(g=> g.type==='single' && g.aimReal && g.distance && g.distanceUnit && g.shotsReal.length>=1);
+  if(!profileId) return base;
+  const linked = base.filter(g=> String(g.profileId) === String(profileId));
+  return linked.length ? linked : base;
+}
+function populateTruingGroupSelect(){
+  const sel = document.getElementById('truingGroupSelect');
+  const prev = sel.value;
+  const profileId = document.getElementById('truingProfileSelect').value;
+  const eligible = getEligibleLongRangeGroups(profileId);
+  sel.innerHTML = '<option value="">— select a group —</option>' + eligible.map(g=>`<option value="${g.id}">${escapeHtml(g.name)} (${g.distance}${g.distanceUnit})</option>`).join('');
+  if([...sel.options].some(o=>o.value===prev)) sel.value=prev;
+}
+function renderTruingMultiGroupList(){
+  const list = document.getElementById('truingMultiGroupList');
+  const profileId = document.getElementById('truingProfileSelect').value;
+  const eligible = getEligibleLongRangeGroups(profileId);
+  if(!eligible.length){ list.innerHTML = '<div class="empty-note">No eligible long-range groups (need a point of aim + distance).</div>'; return; }
+  list.innerHTML = eligible.map(g=>`
+    <div class="group-card"><div class="group-card-header" style="cursor:default;">
+      <input type="checkbox" class="truing-multi-check" data-id="${g.id}">
+      <span class="name">${escapeHtml(g.name)}</span>
+      <span class="count">${g.distance}${g.distanceUnit}</span>
+    </div></div>`).join('');
+}
+
+function groupAtmosphere(group){
+  const tempC = (group.temp!==null && group.temp!==undefined) ? (group.tempUnit==='F' ? (group.temp-32)*5/9 : group.temp) : 15;
+  const humidity = (group.humidity!==null && group.humidity!==undefined) ? group.humidity : 0;
+  const pressureHPa = (group.pressure!==null && group.pressure!==undefined) ? (group.pressureUnit==='inHg' ? group.pressure*33.8639 : group.pressure) : 1013.25;
+  const usedStandard = !(group.temp!==null && group.temp!==undefined) && !(group.pressure!==null && group.pressure!==undefined);
+  return {tempC, humidity, pressureHPa, usedStandard};
+}
+function computeGroupElevationOffsetFeet(group){
+  if(!group.aimReal || !group.distance || !group.distanceUnit) return null;
+  const distanceLinear = distanceToUnit(group.distance, group.distanceUnit, group.unit);
+  const s = fullGroupStats(group.shotsReal, group.aimReal, distanceLinear, groupCaliberLinear(group));
+  if(s.elevation===null || s.elevation===undefined) return null;
+  const elevationMM = s.elevation * UNIT_TO_MM[group.unit];
+  return -(elevationMM/304.8); // drop = -elevation (elevation +high, drop +down)
+}
+
+function solveSingleGroupTruing(profile, group, solveFor){
+  const zeroYd = distanceToFeet(profile.zeroDistance, profile.zeroDistanceUnit)/3;
+  const targetYd = distanceToFeet(group.distance, group.distanceUnit)/3;
+  const atmos = groupAtmosphere(group);
+  const mvFpsBase = profile.mvUnit==='fps' ? profile.mv : convertVelocity(profile.mv, 'mps', 'fps');
+  const observedDropFt = computeGroupElevationOffsetFeet(group);
+  if(observedDropFt===null) return null;
+
+  function predictedDrop(mvFps, bc){
+    return dropRelativeToZeroFt(mvFps, bc, profile.dragModel, atmos.tempC, atmos.pressureHPa, atmos.humidity, zeroYd, targetYd, 0.0012).dropFt;
+  }
+  const baselinePredicted = predictedDrop(mvFpsBase, profile.bc);
+
+  let solvedMv = mvFpsBase, solvedBc = profile.bc;
+  if(solveFor==='bc'){
+    let lo=profile.bc*0.3, hi=profile.bc*3;
+    for(let i=0;i<26;i++){ const mid=(lo+hi)/2; const d=predictedDrop(mvFpsBase, mid); if(d>observedDropFt) lo=mid; else hi=mid; }
+    solvedBc=(lo+hi)/2;
+  } else {
+    let lo=mvFpsBase*0.7, hi=mvFpsBase*1.3;
+    for(let i=0;i<26;i++){ const mid=(lo+hi)/2; const d=predictedDrop(mid, profile.bc); if(d>observedDropFt) lo=mid; else hi=mid; }
+    solvedMv=(lo+hi)/2;
+  }
+  return {observedDropFt, baselinePredicted, solvedMv, solvedBc, mvFpsBase, zeroYd, targetYd, atmos};
+}
+
+document.getElementById('trueSingleBtn').addEventListener('click', ()=>{
+  const profileId = document.getElementById('truingProfileSelect').value;
+  const groupId = document.getElementById('truingGroupSelect').value;
+  const resultEl = document.getElementById('truingSingleResult');
+  if(!profileId || !groupId){ resultEl.innerHTML = '<div class="empty-note">Select a profile and a group.</div>'; return; }
+  const profile = profiles.find(p=>String(p.id)===profileId);
+  const group = groups.find(g=>String(g.id)===groupId);
+  if(!profile || !group) return;
+
+  resultEl.innerHTML = '<div class="empty-note">Calculating…</div>';
+  setTimeout(()=>{
+    const result = solveSingleGroupTruing(profile, group, truingSolveFor);
+    if(!result){ resultEl.innerHTML = '<div class="empty-note">This group needs a point of aim and distance set.</div>'; return; }
+    const observedIn = result.observedDropFt*12;
+    const predictedIn = result.baselinePredicted*12;
+    const errorIn = observedIn-predictedIn;
+    resultEl.innerHTML = `
+      <table class="stats-table">
+        <tr><td>Group / distance</td><td>${escapeHtml(group.name)} @ ${group.distance}${group.distanceUnit}</td></tr>
+        <tr><td>Atmosphere used</td><td>${result.atmos.usedStandard ? 'Standard (no data on group)' : `${fmt(result.atmos.tempC,1)}°C, ${fmt(result.atmos.humidity,0)}%RH, ${fmt(result.atmos.pressureHPa,0)}hPa`}</td></tr>
+        <tr><td>Predicted drop (current profile)</td><td>${fmt(predictedIn,2)} in</td></tr>
+        <tr><td>Observed drop (this group)</td><td>${fmt(observedIn,2)} in</td></tr>
+        <tr><td>Error</td><td>${fmt(errorIn,2)} in</td></tr>
+        ${truingSolveFor==='bc' ? `<tr><td>Solved BC</td><td>${fmt(result.solvedBc,4)} (was ${fmt(profile.bc,4)})</td></tr>` : `<tr><td>Solved MV</td><td>${fmt(result.solvedMv,1)} fps (was ${fmt(result.mvFpsBase,1)} fps)</td></tr>`}
+      </table>
+      <button id="applyTruingBtn" class="primary" style="width:100%; margin-top:8px;">APPLY TO PROFILE</button>`;
+    document.getElementById('applyTruingBtn').addEventListener('click', async ()=>{
+      const idx = profiles.findIndex(p=>p.id===profile.id);
+      if(idx<0) return;
+      if(truingSolveFor==='bc') profiles[idx].bc = result.solvedBc;
+      else profiles[idx].mv = profile.mvUnit==='fps' ? result.solvedMv : convertVelocity(result.solvedMv,'fps','mps');
+      profiles[idx].history = profiles[idx].history || [];
+      profiles[idx].history.push({ts:Date.now(), mv:profiles[idx].mv, mvUnit:profiles[idx].mvUnit, bc:profiles[idx].bc, source:'single', groupIds:[group.id]});
+      await persistProfiles();
+      renderProfileList();
+      populateProfileSelects();
+      renderTruingHistory();
+      resultEl.insertAdjacentHTML('beforeend', '<div class="hint" style="color:var(--good); margin-top:6px;">Applied.</div>');
+    });
+  }, 20);
+});
+
+function fitMultiGroupTruing(profile, selectedGroups){
+  const zeroYd = distanceToFeet(profile.zeroDistance, profile.zeroDistanceUnit)/3;
+  const mvBase = profile.mvUnit==='fps' ? profile.mv : convertVelocity(profile.mv,'mps','fps');
+  const points = selectedGroups.map(g=>({
+    group:g,
+    observedDropFt: computeGroupElevationOffsetFeet(g),
+    targetYd: distanceToFeet(g.distance, g.distanceUnit)/3,
+    atmos: groupAtmosphere(g)
+  })).filter(p=>p.observedDropFt!==null);
+  if(points.length<2) return null;
+
+  function sse(mv, bc){
+    let sum=0;
+    for(const p of points){
+      const r = dropRelativeToZeroFt(mv, bc, profile.dragModel, p.atmos.tempC, p.atmos.pressureHPa, p.atmos.humidity, zeroYd, p.targetYd, 0.0022);
+      const err = r.dropFt-p.observedDropFt;
+      sum += err*err;
+    }
+    return sum;
+  }
+
+  let bestMv=mvBase, bestBc=profile.bc, bestSse=sse(mvBase, profile.bc);
+  let mvRange=[mvBase*0.85, mvBase*1.15], bcRange=[profile.bc*0.7, profile.bc*1.3];
+  const steps=8;
+  for(let pass=0; pass<4; pass++){
+    let local={mv:bestMv, bc:bestBc, sse:bestSse};
+    for(let i=0;i<=steps;i++){
+      for(let j=0;j<=steps;j++){
+        const mv = mvRange[0]+(mvRange[1]-mvRange[0])*i/steps;
+        const bc = bcRange[0]+(bcRange[1]-bcRange[0])*j/steps;
+        const s = sse(mv,bc);
+        if(s<local.sse) local={mv,bc,sse:s};
+      }
+    }
+    bestMv=local.mv; bestBc=local.bc; bestSse=local.sse;
+    const mvSpan=(mvRange[1]-mvRange[0])/steps*2, bcSpan=(bcRange[1]-bcRange[0])/steps*2;
+    mvRange=[bestMv-mvSpan, bestMv+mvSpan];
+    bcRange=[Math.max(0.01,bestBc-bcSpan), bestBc+bcSpan];
+  }
+  const residuals = points.map(p=>{
+    const r = dropRelativeToZeroFt(bestMv, bestBc, profile.dragModel, p.atmos.tempC, p.atmos.pressureHPa, p.atmos.humidity, zeroYd, p.targetYd, 0.0015);
+    return {group:p.group, observedIn:p.observedDropFt*12, predictedIn:r.dropFt*12, errorIn:(r.dropFt-p.observedDropFt)*12};
+  });
+  return {mv:bestMv, bc:bestBc, sse:bestSse, residuals, mvBase};
+}
+
+function fitQualityLabel(rmseIn){
+  if(rmseIn < 0.5) return {label:'Excellent', color:'var(--good)'};
+  if(rmseIn < 1.5) return {label:'Good', color:'var(--good)'};
+  if(rmseIn < 3) return {label:'Fair', color:'var(--brass-bright)'};
+  return {label:'Poor — check for an outlier group', color:'var(--bad)'};
+}
+
+document.getElementById('trueMultiBtn').addEventListener('click', ()=>{
+  const profileId = document.getElementById('truingProfileSelect').value;
+  const resultEl = document.getElementById('truingMultiResult');
+  const checked = [...document.querySelectorAll('.truing-multi-check:checked')].map(cb=>Number(cb.dataset.id));
+  if(!profileId || checked.length<2){ resultEl.innerHTML = '<div class="empty-note">Select a profile and at least 2 groups.</div>'; return; }
+  const profile = profiles.find(p=>String(p.id)===profileId);
+  const selectedGroups = groups.filter(g=>checked.includes(g.id));
+  resultEl.innerHTML = '<div class="empty-note">Calculating…</div>';
+  setTimeout(()=>{
+    const fit = fitMultiGroupTruing(profile, selectedGroups);
+    if(!fit){ resultEl.innerHTML = '<div class="empty-note">Not enough usable data in the selected groups.</div>'; return; }
+    const rmse = Math.sqrt(fit.sse/fit.residuals.length)*12;
+    const quality = fitQualityLabel(rmse);
+    const outlierThreshold = rmse*1.8;
+    const rows = fit.residuals.map(r=>{
+      const isOutlier = Math.abs(r.errorIn) > outlierThreshold && rmse > 0;
+      const style = isOutlier ? `style="color:var(--bad);"` : '';
+      return `<tr ${style}><td>${isOutlier?'⚠ ':''}${escapeHtml(r.group.name)}</td><td>${fmt(r.observedIn,2)}in</td><td>${fmt(r.predictedIn,2)}in</td><td>${fmt(r.errorIn,2)}in</td></tr>`;
+    }).join('');
+    resultEl.innerHTML = `
+      <table class="stats-table">
+        <tr><td>Solved MV</td><td>${fmt(fit.mv,1)} fps (was ${fmt(fit.mvBase,1)} fps)</td></tr>
+        <tr><td>Solved BC</td><td>${fmt(fit.bc,4)} (was ${fmt(profile.bc,4)})</td></tr>
+        <tr><td>Fit RMSE</td><td>${fmt(rmse,2)} in</td></tr>
+        <tr><td>Fit quality</td><td style="color:${quality.color};">${quality.label}</td></tr>
+      </table>
+      <table class="stats-table" style="margin-top:8px;"><thead><tr><th>Group</th><th>Observed</th><th>Predicted</th><th>Error</th></tr></thead><tbody>${rows}</tbody></table>
+      <div class="hint" style="margin-top:6px;">Rows marked ⚠ deviate more than expected from the fit — worth double-checking that group's aim point, distance, or shot marking.</div>
+      <button id="applyMultiTruingBtn" class="primary" style="width:100%; margin-top:8px;">APPLY TO PROFILE</button>`;
+    document.getElementById('applyMultiTruingBtn').addEventListener('click', async ()=>{
+      const idx = profiles.findIndex(p=>p.id===profile.id);
+      if(idx<0) return;
+      profiles[idx].bc = fit.bc;
+      profiles[idx].mv = profile.mvUnit==='fps' ? fit.mv : convertVelocity(fit.mv,'fps','mps');
+      profiles[idx].history = profiles[idx].history || [];
+      profiles[idx].history.push({ts:Date.now(), mv:profiles[idx].mv, mvUnit:profiles[idx].mvUnit, bc:profiles[idx].bc, source:'multi', groupIds:selectedGroups.map(g=>g.id)});
+      await persistProfiles();
+      renderProfileList();
+      populateProfileSelects();
+      renderTruingHistory();
+      resultEl.insertAdjacentHTML('beforeend', '<div class="hint" style="color:var(--good); margin-top:6px;">Applied.</div>');
+    });
+  }, 20);
+});
+
+// ================= Calibration: Dope Card =================
+document.getElementById('dopeAtmosSource').addEventListener('change', ()=>{
+  document.getElementById('dopeCustomAtmosRow').style.display = document.getElementById('dopeAtmosSource').value==='custom' ? 'flex' : 'none';
+});
+function suggestMvSdForProfile(profileId){
+  const linked = groups.filter(g=> String(g.profileId)===String(profileId) && g.velocities && g.velocities.length>1);
+  if(!linked.length) return null;
+  let allFps = [];
+  linked.forEach(g=>{ g.velocities.forEach(v=> allFps.push(convertVelocity(v, g.velocityUnit, 'fps'))); });
+  if(allFps.length<2) return null;
+  return stddev(allFps);
+}
+document.getElementById('dopeProfileSelect').addEventListener('change', ()=>{
+  const pid = document.getElementById('dopeProfileSelect').value;
+  const suggested = pid ? suggestMvSdForProfile(pid) : null;
+  document.getElementById('dopeMvSdInput').value = suggested!==null ? suggested.toFixed(1) : '';
+});
+let lastDopeRows = [], lastDopeUnit = 'm';
+document.getElementById('dopeGenerateBtn').addEventListener('click', ()=>{
+  const profileId = document.getElementById('dopeProfileSelect').value;
+  const resultEl = document.getElementById('dopeCardResult');
+  if(!profileId){ resultEl.innerHTML = '<div class="empty-note">Select a profile.</div>'; document.getElementById('dopeExportBtn').style.display='none'; return; }
+  const profile = profiles.find(p=>String(p.id)===profileId);
+  const fromVal = parseFloat(document.getElementById('dopeFromInput').value) || 100;
+  const toVal = parseFloat(document.getElementById('dopeToInput').value) || 1000;
+  const stepVal = Math.max(1, parseFloat(document.getElementById('dopeStepInput').value) || 100);
+  const distUnit = document.getElementById('dopeDistUnit').value;
+  const atmosSource = document.getElementById('dopeAtmosSource').value;
+  let tempC=15, pressureHPa=1013.25, humidity=0;
+  if(atmosSource==='custom'){
+    tempC = parseFloat(document.getElementById('dopeTempInput').value); if(isNaN(tempC)) tempC=15;
+    humidity = parseFloat(document.getElementById('dopeHumidityInput').value); if(isNaN(humidity)) humidity=0;
+    pressureHPa = parseFloat(document.getElementById('dopePressureInput').value); if(isNaN(pressureHPa)) pressureHPa=1013.25;
+  }
+  const mvFps = profile.mvUnit==='fps' ? profile.mv : convertVelocity(profile.mv,'mps','fps');
+  const zeroYd = distanceToFeet(profile.zeroDistance, profile.zeroDistanceUnit)/3;
+  const mvSdFps = parseFloat(document.getElementById('dopeMvSdInput').value) || 0;
+
+  resultEl.innerHTML = '<div class="empty-note">Calculating…</div>';
+  document.getElementById('dopeExportBtn').style.display = 'none';
+  setTimeout(()=>{
+    const rows = [];
+    for(let d=fromVal; d<=toVal+1e-9; d+=stepVal){
+      const targetFt = distanceToFeet(d, distUnit);
+      const targetYd = targetFt/3;
+      const r = dropRelativeToZeroFt(mvFps, profile.bc, profile.dragModel, tempC, pressureHPa, humidity, zeroYd, targetYd, 0.0015);
+      const dropIn = r.dropFt*12;
+      const rangeIn = targetFt*12;
+      const moa = rangeIn>0 ? (dropIn/rangeIn)*3437.746 : 0;
+      const mil = rangeIn>0 ? (dropIn/rangeIn)*1000 : 0;
+      let dropLoIn=null, dropHiIn=null;
+      if(mvSdFps>0){
+        const rLo = dropRelativeToZeroFt(mvFps-mvSdFps, profile.bc, profile.dragModel, tempC, pressureHPa, humidity, zeroYd, targetYd, 0.002);
+        const rHi = dropRelativeToZeroFt(mvFps+mvSdFps, profile.bc, profile.dragModel, tempC, pressureHPa, humidity, zeroYd, targetYd, 0.002);
+        dropLoIn = Math.min(rLo.dropFt, rHi.dropFt)*12;
+        dropHiIn = Math.max(rLo.dropFt, rHi.dropFt)*12;
+      }
+      rows.push({dist:d, dropIn, moa, mil, velFps:r.velFps, timeS:r.timeS, dropLoIn, dropHiIn});
+    }
+    const hasBand = mvSdFps>0;
+    let html = `<table class="stats-table"><thead><tr><th>Dist</th><th>Drop${hasBand?' (± MV SD)':''}</th><th>MOA</th><th>MIL</th><th>Vel</th></tr></thead><tbody>`;
+    rows.forEach(r=>{
+      const dropCell = hasBand
+        ? `${fmt(r.dropIn,1)}in <span style="color:var(--muted);">(${fmt(r.dropLoIn,1)}–${fmt(r.dropHiIn,1)})</span>`
+        : `${fmt(r.dropIn,1)}in`;
+      html += `<tr><td>${fmt(r.dist,0)}${distUnit}</td><td>${dropCell}</td><td>${fmt(Math.abs(r.moa),2)}</td><td>${fmt(Math.abs(r.mil),2)}</td><td>${fmt(r.velFps,0)}fps</td></tr>`;
+    });
+    html += '</tbody></table>';
+    if(hasBand) html += `<div class="hint" style="margin-top:6px;">Range reflects ±${fmt(mvSdFps,1)}fps muzzle velocity spread (1 SD) — actual drop will typically fall within this band, not exactly on the single predicted value.</div>`;
+    resultEl.innerHTML = html;
+    lastDopeRows = rows; lastDopeUnit = distUnit;
+    document.getElementById('dopeExportBtn').style.display = 'block';
+  }, 20);
+});
+document.getElementById('dopeExportBtn').addEventListener('click', ()=>{
+  const hasBand = lastDopeRows.length && lastDopeRows[0].dropLoIn !== null && lastDopeRows[0].dropLoIn !== undefined;
+  let header = ['distance_'+lastDopeUnit,'drop_in','moa','mil','velocity_fps'];
+  if(hasBand) header = header.concat(['drop_lo_in','drop_hi_in']);
+  let csvRows = [header];
+  lastDopeRows.forEach(r=>{
+    let row = [r.dist, r.dropIn.toFixed(2), r.moa.toFixed(2), r.mil.toFixed(2), r.velFps.toFixed(0)];
+    if(hasBand) row = row.concat([r.dropLoIn!==null?r.dropLoIn.toFixed(2):'', r.dropHiIn!==null?r.dropHiIn.toFixed(2):'']);
+    csvRows.push(row);
+  });
+  downloadCSV(csvRows, 'downrange-dope-card.csv');
+});
+
 // ================= Init =================
 loadSettings().then(()=>{
   fitView();
@@ -2647,6 +3569,8 @@ loadSettings().then(()=>{
   updateCurrentStats();
 });
 loadPhotos().then(loadGroups);
+loadZeroCheckSettings().then(()=>{ renderZeroCheck(); });
+loadProfiles();
 checkFirstRun();
 if(window.__downrangeStorageIsMemoryOnly){
   const el = document.getElementById('storageStatus');
