@@ -3152,6 +3152,11 @@ function distanceToFeet(value, unit){
   const mm = value * DIST_UNIT_TO_MM[unit];
   return mm/304.8;
 }
+function feetToUnit(ft, unit){
+  const mm = ft * 304.8;
+  return mm / UNIT_TO_MM[unit];
+}
+function linearDigitsFor(unit){ return unit==='in' ? 2 : 1; }
 
 // ================= Calibration: Ballistic Profiles =================
 let profiles = [];
@@ -3382,11 +3387,12 @@ function renderTruingHistory(){
     hintEl.textContent='';
     return;
   }
-  const values = hist.map(h=> historyShowMetric==='bc' ? h.bc : (h.mvUnit==='fps' ? h.mv : convertVelocity(h.mv,'mps','fps')));
+  const targetMvUnit = profile.mvUnit || 'fps';
+  const values = hist.map(h=> historyShowMetric==='bc' ? h.bc : (h.mvUnit===targetMvUnit ? h.mv : convertVelocity(h.mv, h.mvUnit, targetMvUnit)));
   const minV=Math.min(...values), maxV=Math.max(...values);
   const pad=(maxV-minV)*0.15 || Math.max(minV*0.05, 0.01);
   const lo=minV-pad, hi=maxV+pad;
-  const marginL=42, marginR=10, marginT=10, marginB=10;
+  const marginL=48, marginR=10, marginT=10, marginB=10;
   const plotW=W-marginL-marginR, plotH=H-marginT-marginB;
   const xFor=(i)=> marginL+(hist.length>1?(i/(hist.length-1))*plotW:plotW/2);
   const yFor=(v)=> marginT+(hi>lo?(1-(v-lo)/(hi-lo)):0.5)*plotH;
@@ -3397,9 +3403,10 @@ function renderTruingHistory(){
   values.forEach((v,i)=>{ const x=xFor(i), y=yFor(v); if(i===0) hctx.moveTo(x,y); else hctx.lineTo(x,y); });
   hctx.stroke();
   values.forEach((v,i)=>{ const x=xFor(i), y=yFor(v); hctx.fillStyle='#D64B2A'; hctx.beginPath(); hctx.arc(x,y,3,0,Math.PI*2); hctx.fill(); });
+  const histUnitLabel = historyShowMetric==='bc' ? '' : (' '+(targetMvUnit==='fps'?'fps':'m/s'));
   hctx.fillStyle='#6B665B'; hctx.font='9px "IBM Plex Mono"'; hctx.textAlign='right';
-  hctx.fillText(fmt(hi, historyShowMetric==='bc'?4:0), marginL-4, marginT+8);
-  hctx.fillText(fmt(lo, historyShowMetric==='bc'?4:0), marginL-4, H-marginB);
+  hctx.fillText(fmt(hi, historyShowMetric==='bc'?4:0)+histUnitLabel, marginL-4, marginT+8);
+  hctx.fillText(fmt(lo, historyShowMetric==='bc'?4:0)+histUnitLabel, marginL-4, H-marginB);
   hctx.textAlign='left';
   hintEl.textContent = `${hist.length} applied truing event(s) for this profile`;
 }
@@ -3466,19 +3473,17 @@ function computeTrueObservedDropFeet(group){
   return dialedFt + residualFt;
 }
 
-function solveSingleGroupTruing(profile, group, solveFor){
-  const zeroYd = distanceToFeet(profile.zeroDistance, profile.zeroDistanceUnit)/3;
-  const targetYd = distanceToFeet(group.distance, group.distanceUnit)/3;
-  const atmos = groupAtmosphere(group);
+function feetToAngular(valueFt, distanceFt, unit){
+  if(!distanceFt) return null;
+  const ratio = valueFt/distanceFt;
+  return unit==='mrad' ? ratio*1000 : ratio*3437.746;
+}
+function solveMvOrBc(profile, observedDropFt, tempC, pressureHPa, humidity, zeroYd, targetYd, solveFor){
   const mvFpsBase = profile.mvUnit==='fps' ? profile.mv : convertVelocity(profile.mv, 'mps', 'fps');
-  const observedDropFt = computeTrueObservedDropFeet(group);
-  if(observedDropFt===null) return null;
-
   function predictedDrop(mvFps, bc){
-    return dropRelativeToZeroFt(mvFps, bc, profile.dragModel, atmos.tempC, atmos.pressureHPa, atmos.humidity, zeroYd, targetYd, 0.0012).dropFt;
+    return dropRelativeToZeroFt(mvFps, bc, profile.dragModel, tempC, pressureHPa, humidity, zeroYd, targetYd, 0.0012).dropFt;
   }
   const baselinePredicted = predictedDrop(mvFpsBase, profile.bc);
-
   let solvedMv = mvFpsBase, solvedBc = profile.bc;
   if(solveFor==='bc'){
     let lo=profile.bc*0.3, hi=profile.bc*3;
@@ -3489,7 +3494,17 @@ function solveSingleGroupTruing(profile, group, solveFor){
     for(let i=0;i<26;i++){ const mid=(lo+hi)/2; const d=predictedDrop(mid, profile.bc); if(d>observedDropFt) lo=mid; else hi=mid; }
     solvedMv=(lo+hi)/2;
   }
-  return {observedDropFt, baselinePredicted, solvedMv, solvedBc, mvFpsBase, zeroYd, targetYd, atmos};
+  return {observedDropFt, baselinePredicted, solvedMv, solvedBc, mvFpsBase};
+}
+function solveSingleGroupTruing(profile, group, solveFor){
+  const zeroYd = distanceToFeet(profile.zeroDistance, profile.zeroDistanceUnit)/3;
+  const targetFt = distanceToFeet(group.distance, group.distanceUnit);
+  const targetYd = targetFt/3;
+  const atmos = groupAtmosphere(group);
+  const observedDropFt = computeTrueObservedDropFeet(group);
+  if(observedDropFt===null) return null;
+  const r = solveMvOrBc(profile, observedDropFt, atmos.tempC, atmos.pressureHPa, atmos.humidity, zeroYd, targetYd, solveFor);
+  return {...r, zeroYd, targetYd, targetFt, atmos};
 }
 
 document.getElementById('trueSingleBtn').addEventListener('click', ()=>{
@@ -3505,19 +3520,31 @@ document.getElementById('trueSingleBtn').addEventListener('click', ()=>{
   setTimeout(()=>{
     const result = solveSingleGroupTruing(profile, group, truingSolveFor);
     if(!result){ resultEl.innerHTML = '<div class="empty-note">This group needs a point of aim and distance set.</div>'; return; }
-    const observedIn = result.observedDropFt*12;
-    const predictedIn = result.baselinePredicted*12;
-    const errorIn = observedIn-predictedIn;
+    const dispUnit = document.getElementById('unitSelect').value;
+    const digits = linearDigitsFor(dispUnit);
+    const observedDisp = feetToUnit(result.observedDropFt, dispUnit);
+    const predictedDisp = feetToUnit(result.baselinePredicted, dispUnit);
+    const errorDisp = observedDisp - predictedDisp;
+    const mvUnit = profile.mvUnit;
+    const mvUnitLabel = mvUnit==='fps' ? 'fps' : 'm/s';
+    const solvedMvDisp = mvUnit==='fps' ? result.solvedMv : convertVelocity(result.solvedMv, 'fps', 'mps');
+    const baseMvDisp = mvUnit==='fps' ? result.mvFpsBase : convertVelocity(result.mvFpsBase, 'fps', 'mps');
+    // The true drop this group implies IS the dial that would have landed dead-on POA —
+    // a direct sanity check against real-world dope you already trust, no new input needed.
+    const impliedMrad = feetToAngular(result.observedDropFt, result.targetFt, 'mrad');
+    const impliedMoa = feetToAngular(result.observedDropFt, result.targetFt, 'moa');
     resultEl.innerHTML = `
       <table class="stats-table">
         <tr><td>Group / distance</td><td>${escapeHtml(group.name)} @ ${group.distance}${group.distanceUnit}</td></tr>
         <tr><td>Dialed elevation used</td><td>${group.dialedElevation ? fmt(group.dialedElevation,2)+' '+(group.dialedElevationUnit||'moa').toUpperCase() : 'None (held dead-on)'}</td></tr>
+        <tr><td>Implied correct dial</td><td>${fmt(impliedMrad,2)} MRAD / ${fmt(impliedMoa,2)} MOA</td></tr>
         <tr><td>Atmosphere used</td><td>${result.atmos.usedStandard ? 'Standard (no data on group)' : `${fmt(result.atmos.tempC,1)}°C, ${fmt(result.atmos.humidity,0)}%RH, ${fmt(result.atmos.pressureHPa,0)}hPa`}</td></tr>
-        <tr><td>Predicted drop (current profile)</td><td>${fmt(predictedIn,2)} in</td></tr>
-        <tr><td>Observed drop (this group)</td><td>${fmt(observedIn,2)} in</td></tr>
-        <tr><td>Error</td><td>${fmt(errorIn,2)} in</td></tr>
-        ${truingSolveFor==='bc' ? `<tr><td>Solved BC</td><td>${fmt(result.solvedBc,4)} (was ${fmt(profile.bc,4)})</td></tr>` : `<tr><td>Solved MV</td><td>${fmt(result.solvedMv,1)} fps (was ${fmt(result.mvFpsBase,1)} fps)</td></tr>`}
+        <tr><td>Predicted drop (current profile)</td><td>${fmt(predictedDisp,digits)} ${dispUnit}</td></tr>
+        <tr><td>True drop (from this group)</td><td>${fmt(observedDisp,digits)} ${dispUnit}</td></tr>
+        <tr><td>Error</td><td>${fmt(errorDisp,digits)} ${dispUnit}</td></tr>
+        ${truingSolveFor==='bc' ? `<tr><td>Solved BC</td><td>${fmt(result.solvedBc,4)} (was ${fmt(profile.bc,4)})</td></tr>` : `<tr><td>Solved MV</td><td>${fmt(solvedMvDisp,1)} ${mvUnitLabel} (was ${fmt(baseMvDisp,1)} ${mvUnitLabel})</td></tr>`}
       </table>
+      <div class="hint" style="margin-top:6px;">Compare "Implied correct dial" against dope you already trust (chronograph, AB, Strelok, prior sessions) before applying — if it's close, the group is solid; if it's way off, double-check that group's aim point, distance, or shot marking rather than trusting the solve.</div>
       <button id="applyTruingBtn" class="primary" style="width:100%; margin-top:8px;">APPLY TO PROFILE</button>`;
     document.getElementById('applyTruingBtn').addEventListener('click', async ()=>{
       const idx = profiles.findIndex(p=>p.id===profile.id);
@@ -3576,7 +3603,7 @@ function fitMultiGroupTruing(profile, selectedGroups){
   }
   const residuals = points.map(p=>{
     const r = dropRelativeToZeroFt(bestMv, bestBc, profile.dragModel, p.atmos.tempC, p.atmos.pressureHPa, p.atmos.humidity, zeroYd, p.targetYd, 0.0015);
-    return {group:p.group, observedIn:p.observedDropFt*12, predictedIn:r.dropFt*12, errorIn:(r.dropFt-p.observedDropFt)*12};
+    return {group:p.group, observedFt:p.observedDropFt, predictedFt:r.dropFt, errorFt:r.dropFt-p.observedDropFt};
   });
   return {mv:bestMv, bc:bestBc, sse:bestSse, residuals, mvBase};
 }
@@ -3599,20 +3626,30 @@ document.getElementById('trueMultiBtn').addEventListener('click', ()=>{
   setTimeout(()=>{
     const fit = fitMultiGroupTruing(profile, selectedGroups);
     if(!fit){ resultEl.innerHTML = '<div class="empty-note">Not enough usable data in the selected groups.</div>'; return; }
-    const rmse = Math.sqrt(fit.sse/fit.residuals.length)*12;
-    const quality = fitQualityLabel(rmse);
-    const outlierThreshold = rmse*1.8;
+    const dispUnit = document.getElementById('unitSelect').value;
+    const digits = linearDigitsFor(dispUnit);
+    const rmseFt = Math.sqrt(fit.sse/fit.residuals.length);
+    const rmseDisp = feetToUnit(rmseFt, dispUnit);
+    const quality = fitQualityLabel(feetToUnit(rmseFt, 'in')); // quality thresholds are inch-calibrated internally
+    const outlierThresholdDisp = rmseDisp*1.8;
+    const mvUnit = profile.mvUnit;
+    const mvUnitLabel = mvUnit==='fps' ? 'fps' : 'm/s';
+    const solvedMvDisp = mvUnit==='fps' ? fit.mv : convertVelocity(fit.mv, 'fps', 'mps');
+    const baseMvDisp = mvUnit==='fps' ? fit.mvBase : convertVelocity(fit.mvBase, 'fps', 'mps');
     const rows = fit.residuals.map(r=>{
-      const isOutlier = Math.abs(r.errorIn) > outlierThreshold && rmse > 0;
+      const observedDisp = feetToUnit(r.observedFt, dispUnit);
+      const predictedDisp = feetToUnit(r.predictedFt, dispUnit);
+      const errorDisp = feetToUnit(r.errorFt, dispUnit);
+      const isOutlier = Math.abs(errorDisp) > outlierThresholdDisp && rmseDisp > 0;
       const style = isOutlier ? `style="color:var(--bad);"` : '';
       const dialedLabel = r.group.dialedElevation ? fmt(r.group.dialedElevation,2)+' '+(r.group.dialedElevationUnit||'moa').toUpperCase() : '—';
-      return `<tr ${style}><td>${isOutlier?'⚠ ':''}${escapeHtml(r.group.name)}</td><td>${dialedLabel}</td><td>${fmt(r.observedIn,2)}in</td><td>${fmt(r.predictedIn,2)}in</td><td>${fmt(r.errorIn,2)}in</td></tr>`;
+      return `<tr ${style}><td>${isOutlier?'⚠ ':''}${escapeHtml(r.group.name)}</td><td>${dialedLabel}</td><td>${fmt(observedDisp,digits)}${dispUnit}</td><td>${fmt(predictedDisp,digits)}${dispUnit}</td><td>${fmt(errorDisp,digits)}${dispUnit}</td></tr>`;
     }).join('');
     resultEl.innerHTML = `
       <table class="stats-table">
-        <tr><td>Solved MV</td><td>${fmt(fit.mv,1)} fps (was ${fmt(fit.mvBase,1)} fps)</td></tr>
+        <tr><td>Solved MV</td><td>${fmt(solvedMvDisp,1)} ${mvUnitLabel} (was ${fmt(baseMvDisp,1)} ${mvUnitLabel})</td></tr>
         <tr><td>Solved BC</td><td>${fmt(fit.bc,4)} (was ${fmt(profile.bc,4)})</td></tr>
-        <tr><td>Fit RMSE</td><td>${fmt(rmse,2)} in</td></tr>
+        <tr><td>Fit RMSE</td><td>${fmt(rmseDisp,digits)} ${dispUnit}</td></tr>
         <tr><td>Fit quality</td><td style="color:${quality.color};">${quality.label}</td></tr>
       </table>
       <table class="stats-table" style="margin-top:8px;"><thead><tr><th>Group</th><th>Dialed</th><th>Observed</th><th>Predicted</th><th>Error</th></tr></thead><tbody>${rows}</tbody></table>
@@ -3671,6 +3708,9 @@ document.getElementById('dopeGenerateBtn').addEventListener('click', ()=>{
   const mvFps = profile.mvUnit==='fps' ? profile.mv : convertVelocity(profile.mv,'mps','fps');
   const zeroYd = distanceToFeet(profile.zeroDistance, profile.zeroDistanceUnit)/3;
   const mvSdFps = parseFloat(document.getElementById('dopeMvSdInput').value) || 0;
+  const dispUnit = document.getElementById('unitSelect').value;
+  const digits = linearDigitsFor(dispUnit);
+  const velUnitLabel = profile.mvUnit==='fps' ? 'fps' : 'm/s';
 
   resultEl.innerHTML = '<div class="empty-note">Calculating…</div>';
   document.getElementById('dopeExportBtn').style.display = 'none';
@@ -3684,38 +3724,47 @@ document.getElementById('dopeGenerateBtn').addEventListener('click', ()=>{
       const rangeIn = targetFt*12;
       const moa = rangeIn>0 ? (dropIn/rangeIn)*3437.746 : 0;
       const mil = rangeIn>0 ? (dropIn/rangeIn)*1000 : 0;
-      let dropLoIn=null, dropHiIn=null;
+      const velDisp = profile.mvUnit==='fps' ? r.velFps : convertVelocity(r.velFps,'fps','mps');
+      let dropLoFt=null, dropHiFt=null;
       if(mvSdFps>0){
         const rLo = dropRelativeToZeroFt(mvFps-mvSdFps, profile.bc, profile.dragModel, tempC, pressureHPa, humidity, zeroYd, targetYd, 0.002);
         const rHi = dropRelativeToZeroFt(mvFps+mvSdFps, profile.bc, profile.dragModel, tempC, pressureHPa, humidity, zeroYd, targetYd, 0.002);
-        dropLoIn = Math.min(rLo.dropFt, rHi.dropFt)*12;
-        dropHiIn = Math.max(rLo.dropFt, rHi.dropFt)*12;
+        dropLoFt = Math.min(rLo.dropFt, rHi.dropFt);
+        dropHiFt = Math.max(rLo.dropFt, rHi.dropFt);
       }
-      rows.push({dist:d, dropIn, moa, mil, velFps:r.velFps, timeS:r.timeS, dropLoIn, dropHiIn});
+      rows.push({dist:d, dropFt:r.dropFt, moa, mil, velDisp, timeS:r.timeS, dropLoFt, dropHiFt});
     }
     const hasBand = mvSdFps>0;
     let html = `<table class="stats-table"><thead><tr><th>Dist</th><th>Drop${hasBand?' (± MV SD)':''}</th><th>MOA</th><th>MIL</th><th>Vel</th></tr></thead><tbody>`;
     rows.forEach(r=>{
+      const dropDisp = feetToUnit(r.dropFt, dispUnit);
       const dropCell = hasBand
-        ? `${fmt(r.dropIn,1)}in <span style="color:var(--muted);">(${fmt(r.dropLoIn,1)}–${fmt(r.dropHiIn,1)})</span>`
-        : `${fmt(r.dropIn,1)}in`;
-      html += `<tr><td>${fmt(r.dist,0)}${distUnit}</td><td>${dropCell}</td><td>${fmt(Math.abs(r.moa),2)}</td><td>${fmt(Math.abs(r.mil),2)}</td><td>${fmt(r.velFps,0)}fps</td></tr>`;
+        ? `${fmt(dropDisp,digits)}${dispUnit} <span style="color:var(--muted);">(${fmt(feetToUnit(r.dropLoFt,dispUnit),digits)}–${fmt(feetToUnit(r.dropHiFt,dispUnit),digits)})</span>`
+        : `${fmt(dropDisp,digits)}${dispUnit}`;
+      html += `<tr><td>${fmt(r.dist,0)}${distUnit}</td><td>${dropCell}</td><td>${fmt(Math.abs(r.moa),2)}</td><td>${fmt(Math.abs(r.mil),2)}</td><td>${fmt(r.velDisp,0)}${velUnitLabel}</td></tr>`;
     });
     html += '</tbody></table>';
-    if(hasBand) html += `<div class="hint" style="margin-top:6px;">Range reflects ±${fmt(mvSdFps,1)}fps muzzle velocity spread (1 SD) — actual drop will typically fall within this band, not exactly on the single predicted value.</div>`;
+    if(hasBand){
+      const mvSdDisp = profile.mvUnit==='fps' ? mvSdFps : convertVelocity(mvSdFps,'fps','mps');
+      html += `<div class="hint" style="margin-top:6px;">Range reflects ±${fmt(mvSdDisp,1)}${velUnitLabel} muzzle velocity spread (1 SD) — actual drop will typically fall within this band, not exactly on the single predicted value.</div>`;
+    }
     resultEl.innerHTML = html;
     lastDopeRows = rows; lastDopeUnit = distUnit;
     document.getElementById('dopeExportBtn').style.display = 'block';
   }, 20);
 });
 document.getElementById('dopeExportBtn').addEventListener('click', ()=>{
-  const hasBand = lastDopeRows.length && lastDopeRows[0].dropLoIn !== null && lastDopeRows[0].dropLoIn !== undefined;
-  let header = ['distance_'+lastDopeUnit,'drop_in','moa','mil','velocity_fps'];
-  if(hasBand) header = header.concat(['drop_lo_in','drop_hi_in']);
+  const hasBand = lastDopeRows.length && lastDopeRows[0].dropLoFt !== null && lastDopeRows[0].dropLoFt !== undefined;
+  const dispUnit = document.getElementById('unitSelect').value;
+  const profileId = document.getElementById('dopeProfileSelect').value;
+  const profile = profiles.find(p=>String(p.id)===profileId);
+  const velUnitLabel = profile && profile.mvUnit==='mps' ? 'mps' : 'fps';
+  let header = ['distance_'+lastDopeUnit, 'drop_'+dispUnit, 'moa', 'mil', 'velocity_'+velUnitLabel];
+  if(hasBand) header = header.concat(['drop_lo_'+dispUnit, 'drop_hi_'+dispUnit]);
   let csvRows = [header];
   lastDopeRows.forEach(r=>{
-    let row = [r.dist, r.dropIn.toFixed(2), r.moa.toFixed(2), r.mil.toFixed(2), r.velFps.toFixed(0)];
-    if(hasBand) row = row.concat([r.dropLoIn!==null?r.dropLoIn.toFixed(2):'', r.dropHiIn!==null?r.dropHiIn.toFixed(2):'']);
+    let row = [r.dist, feetToUnit(r.dropFt,dispUnit).toFixed(3), r.moa.toFixed(2), r.mil.toFixed(2), r.velDisp.toFixed(0)];
+    if(hasBand) row = row.concat([r.dropLoFt!==null?feetToUnit(r.dropLoFt,dispUnit).toFixed(3):'', r.dropHiFt!==null?feetToUnit(r.dropHiFt,dispUnit).toFixed(3):'']);
     csvRows.push(row);
   });
   downloadCSV(csvRows, 'downrange-dope-card.csv');
