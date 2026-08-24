@@ -117,6 +117,7 @@
   <button class="tab-btn" data-tab="guide">Guide</button>
   <button class="tab-btn active" data-tab="setup">Setup</button>
   <button class="tab-btn" data-tab="analysis">Analysis</button>
+  <button class="tab-btn" data-tab="profiles">Profiles</button>
   <button class="tab-btn" data-tab="calibration">Calibration</button>
   <button class="tab-btn" data-tab="settings">Settings</button>
 </div>
@@ -185,17 +186,11 @@
 
   <div class="sidebar">
 
-    <div class="panel" style="margin-bottom:14px;">
-      <div class="section-title">UNITS</div>
-      <div class="field-row">
-        <label>Measure in</label>
-        <select id="unitSelect">
-          <option value="mm">millimeters</option>
-          <option value="cm">centimeters</option>
-          <option value="in">inches</option>
-        </select>
-      </div>
-    </div>
+    <select id="unitSelect" style="display:none;">
+      <option value="mm">millimeters</option>
+      <option value="cm">centimeters</option>
+      <option value="in">inches</option>
+    </select>
 
     <div class="panel">
       <div class="section-title">CURRENT GROUP</div>
@@ -251,6 +246,15 @@
         <label>Ballistic profile</label>
         <select id="groupProfileSelect"><option value="">— none —</option></select>
       </div>
+      <div class="field-row">
+        <label>Dialed elev.</label>
+        <input type="number" id="groupDialedElevInput" step="any" placeholder="0 (optional)">
+        <select id="groupDialedElevUnit" style="max-width:70px;">
+          <option value="moa" selected>MOA</option>
+          <option value="mrad">MRAD</option>
+        </select>
+      </div>
+      <div class="hint" style="margin:-6px 0 10px;">If you dialed a scope correction before this long-range shot (rather than holding dead-on), enter how much — truing needs this to compute the true drop. Leave blank/0 if you held dead-on.</div>
       <div class="field-row">
         <label>Ammo/Load</label>
         <input type="text" id="groupAmmoInput" placeholder="e.g. Hornady ELD-M 140gr">
@@ -519,12 +523,13 @@
 </div>
 
 <!-- ================= CALIBRATION TAB ================= -->
-<div class="analysis-grid tab-content" id="tab-calibration" style="display:none;">
+<!-- ================= PROFILES TAB ================= -->
+<div class="analysis-grid tab-content" id="tab-profiles" style="display:none;">
 
   <div>
-    <div class="panel" style="margin-bottom:14px;">
-      <div class="section-title">BALLISTIC PROFILES</div>
-      <div class="hint" style="margin-bottom:10px;">A profile represents one rifle+load combination — its own MV, BC, drag model, and rifle geometry. Simplified point-mass model (no spin drift, Coriolis, or aerodynamic jump); sanity-check against a trusted reference before relying on it for real dope.</div>
+    <div class="panel">
+      <div class="section-title">BALLISTIC PROFILE</div>
+      <div class="hint" style="margin-bottom:10px;">A profile represents one rifle+load combination — its own MV, BC, drag model, and rifle geometry. Simplified point-mass model (no spin drift, Coriolis, or aerodynamic jump); sanity-check against a trusted reference before relying on it for real dope. Link a group to a profile in Setup and it'll autofill Ammo/Load, Charge, and Caliber if those are still blank.</div>
       <div class="field-row"><label>Name</label><input type="text" id="profileNameInput" placeholder="e.g. 6.5CM 140gr ELD-M"></div>
       <div class="field-row">
         <label>MV</label>
@@ -562,20 +567,56 @@
           <option value="in">in</option>
         </select>
       </div>
+      <div class="divider"></div>
+      <div class="hint" style="margin-bottom:10px;">The fields below aren't used in the ballistics math — they're just carried along to autofill new groups you link to this profile.</div>
+      <div class="field-row"><label>Ammo/Load</label><input type="text" id="profileAmmoInput" placeholder="e.g. Hornady ELD-M 140gr"></div>
+      <div class="field-row"><label>Charge</label><input type="number" id="profileChargeInput" step="any" min="0" placeholder="gr (optional)"></div>
+      <div class="field-row">
+        <label>Caliber</label>
+        <select id="profileCaliberSelect">
+          <option value="none" selected>None</option>
+          <option value="4.4">.17 (4.4mm)</option>
+          <option value="5.0">.20 (5.0mm)</option>
+          <option value="5.7">.223 / 5.56 (5.7mm)</option>
+          <option value="6.17">6mm / .243 (6.17mm)</option>
+          <option value="6.71">6.5mm / .264 (6.71mm)</option>
+          <option value="7.04">.270 (7.04mm)</option>
+          <option value="7.21">7mm / .284 (7.21mm)</option>
+          <option value="7.82">.308 / 7.62 (7.82mm)</option>
+          <option value="8.59">.338 (8.59mm)</option>
+          <option value="9.02">9mm Luger (9.02mm)</option>
+          <option value="10.2">.40 S&amp;W (10.2mm)</option>
+          <option value="11.43">.45 ACP (11.43mm)</option>
+          <option value="custom">Custom…</option>
+        </select>
+      </div>
+      <div class="field-row" id="profileCaliberCustomRow" style="display:none;">
+        <label></label>
+        <input type="number" id="profileCaliberCustomInput" step="any" min="0" placeholder="bullet diameter (mm)">
+      </div>
       <div class="field-row" style="align-items:flex-start;"><label style="padding-top:6px;">Notes</label><textarea id="profileNotesInput" rows="2" placeholder="optional"></textarea></div>
       <div id="profileFormStatus" class="hint" style="color:var(--bad); min-height:14px;"></div>
       <div class="toolbar">
         <button id="profileSaveBtn" class="primary" style="flex:1;">SAVE PROFILE</button>
         <button id="profileCancelBtn" style="display:none;">CANCEL</button>
       </div>
-      <div class="divider"></div>
-      <div class="group-list" id="profileList"></div>
-      <div class="empty-note" id="profileEmpty">No profiles yet.</div>
     </div>
   </div>
 
   <div>
-    <div class="panel" style="margin-bottom:14px;">
+    <div class="panel">
+      <div class="section-title">SAVED PROFILES</div>
+      <div class="group-list" id="profileList"></div>
+      <div class="empty-note" id="profileEmpty">No profiles yet.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ================= CALIBRATION TAB ================= -->
+<div class="analysis-grid tab-content" id="tab-calibration" style="display:none;">
+
+  <div>
+    <div class="panel">
       <div class="section-title">TRUE YOUR BALLISTICS</div>
       <div class="field-row">
         <label>Profile</label>
@@ -608,7 +649,7 @@
 
       <div id="truingMultiBlock" style="display:none;">
         <div class="hint" style="margin-bottom:8px;">Select two or more long-range groups, ideally at different distances, for a combined MV+BC fit.</div>
-        <div class="group-list" id="truingMultiGroupList" style="max-height:220px;"></div>
+        <div class="group-list" id="truingMultiGroupList"></div>
         <button id="trueMultiBtn" class="primary" style="width:100%; margin-top:8px;">CALCULATE (FIT MV &amp; BC)</button>
         <div id="truingMultiResult" style="margin-top:10px;"></div>
       </div>
@@ -627,7 +668,9 @@
       </div>
       <div class="hint" id="historyHint" style="margin-top:6px;"></div>
     </div>
+  </div>
 
+  <div>
     <div class="panel">
       <div class="section-title">DOPE CARD</div>
       <div class="field-row">
@@ -642,6 +685,7 @@
         <select id="dopeDistUnit" style="max-width:70px;">
           <option value="m" selected>m</option>
           <option value="yd">yd</option>
+          <option value="ft">ft</option>
         </select>
       </div>
       <div class="field-row">
@@ -746,10 +790,14 @@
     <p>Points CSV and Summary CSV give you raw and computed data. Export Session saves everything — groups, metadata, attached photos — as one JSON file; Import Session restores it, here or on another device.</p>
 
     <h3>Settings</h3>
-    <p>Set your default measurement, distance, and velocity units so new groups start with what you normally use.</p>
+    <p>Set your default measurement, distance, and velocity units so new groups start with what you normally use — every unit selector throughout the app follows this default, including on the Calibration and Profiles tabs. There's no separate unit picker on Setup anymore; it's controlled from here.</p>
+
+    <h3>Profiles</h3>
+    <p>Build a <strong>Ballistic Profile</strong> for a rifle+load: MV, BC, drag model, zero distance, sight height. Drag model has no default on purpose — you always choose G1 or G7 deliberately. A profile can also carry Ammo/Load, Charge, and Caliber — link a group to it (in Setup) and those three fields autofill automatically if they're still blank, so you're not retyping the same load info every session.</p>
 
     <h3>Calibration</h3>
-    <p>A separate tool for exterior-ballistics truing — not group geometry. Build a <strong>Ballistic Profile</strong> for a rifle+load (MV, BC, drag model, zero distance, sight height), then compare a long-range group against what the profile predicts. If there's a mismatch, solve for a corrected MV or BC — from one group, or from several at different distances for a combined fit — and generate a Dope Card from the result. This uses a simplified point-mass model (no spin drift, Coriolis, or aerodynamic jump) built from public-domain drag data and independently checked against published trajectory figures — treat it as a solid starting point, not a replacement for verifying your own dope on paper.</p>
+    <p>A separate tool for exterior-ballistics truing — not group geometry. Compare a long-range group against what a Profile predicts. If there's a mismatch, solve for a corrected MV or BC — from one group, or from several at different distances for a combined fit — and generate a Dope Card from the result. This uses a simplified point-mass model (no spin drift, Coriolis, or aerodynamic jump) built from public-domain drag data and independently checked against published trajectory figures — treat it as a solid starting point, not a replacement for verifying your own dope on paper.</p>
+    <p><strong>Dialed elevation:</strong> if you held dead-on at the long-range target with no scope adjustment, leave this blank. If you dialed a scope correction first (the usual workflow), enter how much in the group's "Dialed elev." field — truing adds that to the residual offset from POA to get the true drop; without it, a dialed shot would be read as far more accurate than it actually was, since most of the drop was cancelled out by the dial rather than confirmed empty.</p>
   </div>
 
   <div class="guide-section">
@@ -883,8 +931,11 @@ function switchTab(name){
   activeTab = name;
   if(name === 'analysis'){ renderGroupList(); renderCompareTable(); }
   if(name === 'setup'){ draw(); }
-  if(name === 'calibration'){
+  if(name === 'profiles'){
     renderProfileList();
+    populateProfileSelects();
+  }
+  if(name === 'calibration'){
     populateProfileSelects();
     populateTruingGroupSelect();
     if(truingMode === 'multi') renderTruingMultiGroupList();
@@ -988,16 +1039,30 @@ function showStorageWarning(){
 }
 
 // ================= Settings =================
+// Centralized so every selector of a given kind stays in sync with the chosen
+// default — add new selects to these lists rather than wiring them one-off.
+const MEASUREMENT_UNIT_SELECTS = ['unitSelect','trendUnitSelect','compareUnitSelect','zeroCheckUnitSelect','profileSightHeightUnit','groupSeatingUnit'];
+const DISTANCE_UNIT_SELECTS = ['groupDistanceUnit','profileZeroDistUnit','dopeDistUnit','zeroCheckRefDistanceUnit'];
+const VELOCITY_UNIT_SELECTS = ['groupVelocityUnit','trendVelUnitSelect','profileMvUnit'];
+
+function applyUnitDefault(selectIds, value){
+  selectIds.forEach(id=>{
+    const el = document.getElementById(id);
+    if(!el) return;
+    const hasOption = [...el.options].some(o=>o.value===value);
+    if(hasOption) el.value = value;
+  });
+}
+
 async function loadSettings(){
   let settings = {unit:'mm', distanceUnit:'m', velocityUnit:'mps'};
   try{
     const res = await storageGet('downrange:settings:v1', false);
     if(res && res.value) settings = {...settings, ...JSON.parse(res.value)};
   }catch(e){}
-  document.getElementById('unitSelect').value = settings.unit;
-  document.getElementById('groupDistanceUnit').value = settings.distanceUnit;
-  document.getElementById('groupVelocityUnit').value = settings.velocityUnit;
-  document.getElementById('trendVelUnitSelect').value = settings.velocityUnit;
+  applyUnitDefault(MEASUREMENT_UNIT_SELECTS, settings.unit);
+  applyUnitDefault(DISTANCE_UNIT_SELECTS, settings.distanceUnit);
+  applyUnitDefault(VELOCITY_UNIT_SELECTS, settings.velocityUnit);
   document.getElementById('settingsUnitSelect').value = settings.unit;
   document.getElementById('settingsDistanceUnitSelect').value = settings.distanceUnit;
   document.getElementById('settingsVelocityUnitSelect').value = settings.velocityUnit;
@@ -1013,21 +1078,33 @@ async function persistSettings(){
   try{ await storageSet('downrange:settings:v1', JSON.stringify(settings), false); }
   catch(e){ console.error('settings storage failed', e); }
 }
+// Re-renders everything whose displayed values depend on a unit selector, so a
+// live default change is reflected immediately everywhere, not just on reload.
+function refreshAfterUnitDefaultChange(){
+  document.getElementById('calibUnitLabel').textContent = document.getElementById('unitSelect').value;
+  document.getElementById('caliberCustomUnit').textContent = document.getElementById('unitSelect').value;
+  updateCalibHint();
+  updateCurrentStats();
+  draw();
+  renderGroupList();
+  renderCompareTable();
+  updateZeroCheckRefDistanceVisibility();
+  renderZeroCheck();
+  renderTrendChart();
+}
 document.getElementById('settingsUnitSelect').addEventListener('change', ()=>{
-  document.getElementById('unitSelect').value = document.getElementById('settingsUnitSelect').value;
-  onUnitSelectChanged();
+  applyUnitDefault(MEASUREMENT_UNIT_SELECTS, document.getElementById('settingsUnitSelect').value);
+  refreshAfterUnitDefaultChange();
   persistSettings();
 });
 document.getElementById('settingsDistanceUnitSelect').addEventListener('change', ()=>{
-  document.getElementById('groupDistanceUnit').value = document.getElementById('settingsDistanceUnitSelect').value;
-  updateCurrentStats();
+  applyUnitDefault(DISTANCE_UNIT_SELECTS, document.getElementById('settingsDistanceUnitSelect').value);
+  refreshAfterUnitDefaultChange();
   persistSettings();
 });
 document.getElementById('settingsVelocityUnitSelect').addEventListener('change', ()=>{
-  document.getElementById('groupVelocityUnit').value = document.getElementById('settingsVelocityUnitSelect').value;
-  document.getElementById('trendVelUnitSelect').value = document.getElementById('settingsVelocityUnitSelect').value;
-  updateCurrentStats();
-  renderTrendChart();
+  applyUnitDefault(VELOCITY_UNIT_SELECTS, document.getElementById('settingsVelocityUnitSelect').value);
+  refreshAfterUnitDefaultChange();
   persistSettings();
 });
 
@@ -1546,6 +1623,25 @@ document.getElementById('caliberSelect').addEventListener('change', ()=>{
 });
 document.getElementById('caliberCustomInput').addEventListener('input', ()=>{ draw(); updateCurrentStats(); });
 
+// Linking a group to a Ballistic Profile autofills Ammo/Load, Charge, and Caliber
+// from that profile — but only fields that are still blank, so it never clobbers
+// something already typed in.
+document.getElementById('groupProfileSelect').addEventListener('change', ()=>{
+  const pid = document.getElementById('groupProfileSelect').value;
+  if(!pid) return;
+  const profile = profiles.find(p=>String(p.id)===pid);
+  if(!profile) return;
+  const ammoEl = document.getElementById('groupAmmoInput');
+  if(!ammoEl.value.trim() && profile.ammo) ammoEl.value = profile.ammo;
+  const chargeEl = document.getElementById('groupChargeInput');
+  if(!chargeEl.value && profile.charge) chargeEl.value = profile.charge;
+  if(profile.caliberMM && document.getElementById('caliberSelect').value === 'none'){
+    setCaliberSelectFromMM(profile.caliberMM);
+  }
+  draw();
+  updateCurrentStats();
+});
+
 function groupCaliberLinear(g){
   return g.caliberMM ? convertLinear(g.caliberMM, 'mm', g.unit) : null;
 }
@@ -1661,6 +1757,8 @@ async function startEditGroup(g){
   setCaliberSelectFromMM(g.caliberMM);
   document.getElementById('groupAmmoInput').value = g.ammo || '';
   document.getElementById('groupProfileSelect').value = g.profileId || '';
+  document.getElementById('groupDialedElevInput').value = g.dialedElevation || '';
+  document.getElementById('groupDialedElevUnit').value = g.dialedElevationUnit || 'moa';
   document.getElementById('groupChargeInput').value = g.charge ?? '';
   document.getElementById('groupSeatingInput').value = g.seating ?? '';
   document.getElementById('groupSeatingUnit').value = g.seatingUnit || 'mm';
@@ -1694,6 +1792,8 @@ function clearCurrentGroupFields(){
   document.getElementById('groupTagsInput').value = '';
   document.getElementById('groupAmmoInput').value = '';
   document.getElementById('groupProfileSelect').value = '';
+  document.getElementById('groupDialedElevInput').value = '';
+  document.getElementById('groupDialedElevUnit').value = 'moa';
   document.getElementById('groupChargeInput').value = '';
   document.getElementById('groupSeatingInput').value = '';
   document.getElementById('groupNotesInput').value = '';
@@ -1956,6 +2056,8 @@ document.getElementById('saveGroupBtn').addEventListener('click', async ()=>{
   const ammo = document.getElementById('groupAmmoInput').value.trim() || null;
   const profileSelectVal = document.getElementById('groupProfileSelect').value;
   const profileId = profileSelectVal ? Number(profileSelectVal) : null;
+  const dialedElevation = parseFloat(document.getElementById('groupDialedElevInput').value) || 0;
+  const dialedElevationUnit = document.getElementById('groupDialedElevUnit').value;
   const charge = parseFloat(document.getElementById('groupChargeInput').value) || null;
   const seating = parseFloat(document.getElementById('groupSeatingInput').value) || null;
   const seatingUnit = document.getElementById('groupSeatingUnit').value;
@@ -1981,7 +2083,7 @@ document.getElementById('saveGroupBtn').addEventListener('click', async ()=>{
         ...groups[idx],
         name, unit, shotsReal, aimReal, coldBoreReal,
         distance: distVal, distanceUnit: distVal ? distUnit : null,
-        caliberMM, ammo, profileId, charge, seating, seatingUnit, notes, tags, velocities, velocityUnit,
+        caliberMM, ammo, profileId, dialedElevation, dialedElevationUnit, charge, seating, seatingUnit, notes, tags, velocities, velocityUnit,
         temp: tempVal, tempUnit, humidity: humidityVal, pressure: pressureVal, pressureUnit, wind, includeInZeroCheck
       };
     }
@@ -2000,7 +2102,7 @@ document.getElementById('saveGroupBtn').addEventListener('click', async ()=>{
     groups.push({
       id: Date.now(), name, type:'single', unit, shotsReal, aimReal, coldBoreReal,
       distance: distVal, distanceUnit: distVal ? distUnit : null,
-      caliberMM, sourceGroupIds: null, profileId,
+      caliberMM, sourceGroupIds: null, profileId, dialedElevation, dialedElevationUnit,
       ammo, charge, seating, seatingUnit, notes, tags, velocities, velocityUnit,
       temp: tempVal, tempUnit, humidity: humidityVal, pressure: pressureVal, pressureUnit, wind, includeInZeroCheck,
       image: imageRef
@@ -2240,7 +2342,7 @@ document.getElementById('compositeBtn').addEventListener('click', async ()=>{
 const MOA_TO_MIL = 1000/3437.746;
 
 async function loadZeroCheckSettings(){
-  let s = {enabled:false, windage:0, elevation:0, unit:'moa', refDistance:100, refDistanceUnit:'m'};
+  let s = {enabled:false, windage:0, elevation:0, refDistance:100};
   try{
     const res = await storageGet('downrange:zerocheck:v1', false);
     if(res && res.value) s = {...s, ...JSON.parse(res.value)};
@@ -2248,9 +2350,7 @@ async function loadZeroCheckSettings(){
   document.getElementById('scopeOffsetEnabled').checked = s.enabled;
   document.getElementById('scopeOffsetWindage').value = s.windage || '';
   document.getElementById('scopeOffsetElevation').value = s.elevation || '';
-  document.getElementById('zeroCheckUnitSelect').value = s.unit;
   document.getElementById('zeroCheckRefDistance').value = s.refDistance;
-  document.getElementById('zeroCheckRefDistanceUnit').value = s.refDistanceUnit;
   document.getElementById('scopeOffsetRow').style.display = s.enabled ? 'flex' : 'none';
   updateZeroCheckRefDistanceVisibility();
 }
@@ -2259,9 +2359,7 @@ async function persistZeroCheckSettings(){
     enabled: document.getElementById('scopeOffsetEnabled').checked,
     windage: parseFloat(document.getElementById('scopeOffsetWindage').value) || 0,
     elevation: parseFloat(document.getElementById('scopeOffsetElevation').value) || 0,
-    unit: document.getElementById('zeroCheckUnitSelect').value,
-    refDistance: parseFloat(document.getElementById('zeroCheckRefDistance').value) || 100,
-    refDistanceUnit: document.getElementById('zeroCheckRefDistanceUnit').value
+    refDistance: parseFloat(document.getElementById('zeroCheckRefDistance').value) || 100
   };
   try{ await storageSet('downrange:zerocheck:v1', JSON.stringify(s), false); }
   catch(e){ console.error('zero check settings storage failed', e); }
@@ -3076,6 +3174,36 @@ function showProfileError(msg){
   el.textContent = msg;
   setTimeout(()=>{ el.textContent=''; }, 5000);
 }
+function getProfileCaliberMM(){
+  const sel = document.getElementById('profileCaliberSelect').value;
+  if(sel === 'none') return null;
+  if(sel === 'custom'){
+    const num = parseFloat(document.getElementById('profileCaliberCustomInput').value);
+    return (isNaN(num) || num<=0) ? null : num;
+  }
+  return parseFloat(sel);
+}
+function setProfileCaliberSelectFromMM(mm){
+  const select = document.getElementById('profileCaliberSelect');
+  if(!mm){
+    select.value = 'none';
+    document.getElementById('profileCaliberCustomRow').style.display = 'none';
+    return;
+  }
+  const preset = [...select.options].find(o=> o.value!=='none' && o.value!=='custom' && Math.abs(parseFloat(o.value)-mm) < 0.001);
+  if(preset){
+    select.value = preset.value;
+    document.getElementById('profileCaliberCustomRow').style.display = 'none';
+  } else {
+    select.value = 'custom';
+    document.getElementById('profileCaliberCustomRow').style.display = 'flex';
+    document.getElementById('profileCaliberCustomInput').value = mm.toFixed(3);
+  }
+}
+document.getElementById('profileCaliberSelect').addEventListener('change', ()=>{
+  document.getElementById('profileCaliberCustomRow').style.display = document.getElementById('profileCaliberSelect').value==='custom' ? 'flex' : 'none';
+});
+
 function clearProfileForm(){
   editingProfileId = null;
   document.getElementById('profileNameInput').value = '';
@@ -3085,6 +3213,9 @@ function clearProfileForm(){
   document.getElementById('profileWeightInput').value = '';
   document.getElementById('profileZeroDistInput').value = '100';
   document.getElementById('profileSightHeightInput').value = '40';
+  document.getElementById('profileAmmoInput').value = '';
+  document.getElementById('profileChargeInput').value = '';
+  setProfileCaliberSelectFromMM(null);
   document.getElementById('profileNotesInput').value = '';
   document.getElementById('profileSaveBtn').textContent = 'SAVE PROFILE';
   document.getElementById('profileCancelBtn').style.display = 'none';
@@ -3101,6 +3232,9 @@ function startEditProfile(p){
   document.getElementById('profileZeroDistUnit').value = p.zeroDistanceUnit;
   document.getElementById('profileSightHeightInput').value = p.sightHeight;
   document.getElementById('profileSightHeightUnit').value = p.sightHeightUnit;
+  document.getElementById('profileAmmoInput').value = p.ammo || '';
+  document.getElementById('profileChargeInput').value = p.charge ?? '';
+  setProfileCaliberSelectFromMM(p.caliberMM);
   document.getElementById('profileNotesInput').value = p.notes || '';
   document.getElementById('profileSaveBtn').textContent = 'UPDATE PROFILE';
   document.getElementById('profileCancelBtn').style.display = 'inline-block';
@@ -3117,6 +3251,9 @@ document.getElementById('profileSaveBtn').addEventListener('click', async ()=>{
   const zeroDistanceUnit = document.getElementById('profileZeroDistUnit').value;
   const sightHeight = parseFloat(document.getElementById('profileSightHeightInput').value) || 0;
   const sightHeightUnit = document.getElementById('profileSightHeightUnit').value;
+  const ammo = document.getElementById('profileAmmoInput').value.trim() || null;
+  const charge = parseFloat(document.getElementById('profileChargeInput').value) || null;
+  const caliberMM = getProfileCaliberMM();
   const notes = document.getElementById('profileNotesInput').value.trim() || null;
 
   if(!name){ showProfileError('Name is required.'); return; }
@@ -3126,9 +3263,9 @@ document.getElementById('profileSaveBtn').addEventListener('click', async ()=>{
 
   if(editingProfileId){
     const idx = profiles.findIndex(p=>p.id===editingProfileId);
-    if(idx>=0) profiles[idx] = {...profiles[idx], name, mv, mvUnit, bc, dragModel, bulletWeight, zeroDistance, zeroDistanceUnit, sightHeight, sightHeightUnit, notes};
+    if(idx>=0) profiles[idx] = {...profiles[idx], name, mv, mvUnit, bc, dragModel, bulletWeight, zeroDistance, zeroDistanceUnit, sightHeight, sightHeightUnit, ammo, charge, caliberMM, notes};
   } else {
-    profiles.push({id:Date.now(), name, mv, mvUnit, bc, dragModel, bulletWeight, zeroDistance, zeroDistanceUnit, sightHeight, sightHeightUnit, notes});
+    profiles.push({id:Date.now(), name, mv, mvUnit, bc, dragModel, bulletWeight, zeroDistance, zeroDistanceUnit, sightHeight, sightHeightUnit, ammo, charge, caliberMM, notes, history:[]});
   }
   await persistProfiles();
   renderProfileList();
@@ -3149,6 +3286,7 @@ function renderProfileList(){
         <button data-edit-profile="${p.id}">EDIT</button>
         <button data-del-profile="${p.id}">✕</button>
       </div>
+      ${p.ammo ? `<div class="meta-block" style="padding:0 10px 10px;"><strong>Load:</strong> ${escapeHtml(p.ammo)}${p.charge?` · <strong>Charge:</strong> ${p.charge}gr`:''}</div>` : ''}
     </div>`).join('');
   list.querySelectorAll('[data-edit-profile]').forEach(btn=>{
     btn.addEventListener('click', (e)=>{ e.stopPropagation(); const p=profiles.find(x=>x.id===Number(btn.dataset.editProfile)); if(p) startEditProfile(p); });
@@ -3300,13 +3438,32 @@ function groupAtmosphere(group){
   const usedStandard = !(group.temp!==null && group.temp!==undefined) && !(group.pressure!==null && group.pressure!==undefined);
   return {tempC, humidity, pressureHPa, usedStandard};
 }
-function computeGroupElevationOffsetFeet(group){
+function computeGroupResidualOffsetFeet(group){
+  // Raw residual: how far the group's centroid landed from POA, ignoring any
+  // scope correction that was dialed in before firing. NOT the true drop by
+  // itself if the shooter dialed elevation rather than holding dead-on.
   if(!group.aimReal || !group.distance || !group.distanceUnit) return null;
   const distanceLinear = distanceToUnit(group.distance, group.distanceUnit, group.unit);
   const s = fullGroupStats(group.shotsReal, group.aimReal, distanceLinear, groupCaliberLinear(group));
   if(s.elevation===null || s.elevation===undefined) return null;
   const elevationMM = s.elevation * UNIT_TO_MM[group.unit];
-  return -(elevationMM/304.8); // drop = -elevation (elevation +high, drop +down)
+  return -(elevationMM/304.8); // residual = -elevation (elevation +high, drop +down)
+}
+function dialedAdjustmentToFeet(dialedValue, dialedUnit, distanceFt){
+  if(!dialedValue) return 0;
+  const ratio = dialedUnit==='mrad' ? dialedValue/1000 : dialedValue/3437.746;
+  return ratio * distanceFt;
+}
+function computeTrueObservedDropFeet(group){
+  // True drop = the elevation correction dialed into the scope before firing,
+  // plus whatever residual offset remained after that correction. Dialing D and
+  // landing exactly on POA means the true drop WAS D; landing short/long of POA
+  // after dialing means the true drop was D plus/minus that residual.
+  const residualFt = computeGroupResidualOffsetFeet(group);
+  if(residualFt === null) return null;
+  const distanceFt = distanceToFeet(group.distance, group.distanceUnit);
+  const dialedFt = dialedAdjustmentToFeet(group.dialedElevation || 0, group.dialedElevationUnit || 'moa', distanceFt);
+  return dialedFt + residualFt;
 }
 
 function solveSingleGroupTruing(profile, group, solveFor){
@@ -3314,7 +3471,7 @@ function solveSingleGroupTruing(profile, group, solveFor){
   const targetYd = distanceToFeet(group.distance, group.distanceUnit)/3;
   const atmos = groupAtmosphere(group);
   const mvFpsBase = profile.mvUnit==='fps' ? profile.mv : convertVelocity(profile.mv, 'mps', 'fps');
-  const observedDropFt = computeGroupElevationOffsetFeet(group);
+  const observedDropFt = computeTrueObservedDropFeet(group);
   if(observedDropFt===null) return null;
 
   function predictedDrop(mvFps, bc){
@@ -3354,6 +3511,7 @@ document.getElementById('trueSingleBtn').addEventListener('click', ()=>{
     resultEl.innerHTML = `
       <table class="stats-table">
         <tr><td>Group / distance</td><td>${escapeHtml(group.name)} @ ${group.distance}${group.distanceUnit}</td></tr>
+        <tr><td>Dialed elevation used</td><td>${group.dialedElevation ? fmt(group.dialedElevation,2)+' '+(group.dialedElevationUnit||'moa').toUpperCase() : 'None (held dead-on)'}</td></tr>
         <tr><td>Atmosphere used</td><td>${result.atmos.usedStandard ? 'Standard (no data on group)' : `${fmt(result.atmos.tempC,1)}°C, ${fmt(result.atmos.humidity,0)}%RH, ${fmt(result.atmos.pressureHPa,0)}hPa`}</td></tr>
         <tr><td>Predicted drop (current profile)</td><td>${fmt(predictedIn,2)} in</td></tr>
         <tr><td>Observed drop (this group)</td><td>${fmt(observedIn,2)} in</td></tr>
@@ -3382,7 +3540,7 @@ function fitMultiGroupTruing(profile, selectedGroups){
   const mvBase = profile.mvUnit==='fps' ? profile.mv : convertVelocity(profile.mv,'mps','fps');
   const points = selectedGroups.map(g=>({
     group:g,
-    observedDropFt: computeGroupElevationOffsetFeet(g),
+    observedDropFt: computeTrueObservedDropFeet(g),
     targetYd: distanceToFeet(g.distance, g.distanceUnit)/3,
     atmos: groupAtmosphere(g)
   })).filter(p=>p.observedDropFt!==null);
@@ -3447,7 +3605,8 @@ document.getElementById('trueMultiBtn').addEventListener('click', ()=>{
     const rows = fit.residuals.map(r=>{
       const isOutlier = Math.abs(r.errorIn) > outlierThreshold && rmse > 0;
       const style = isOutlier ? `style="color:var(--bad);"` : '';
-      return `<tr ${style}><td>${isOutlier?'⚠ ':''}${escapeHtml(r.group.name)}</td><td>${fmt(r.observedIn,2)}in</td><td>${fmt(r.predictedIn,2)}in</td><td>${fmt(r.errorIn,2)}in</td></tr>`;
+      const dialedLabel = r.group.dialedElevation ? fmt(r.group.dialedElevation,2)+' '+(r.group.dialedElevationUnit||'moa').toUpperCase() : '—';
+      return `<tr ${style}><td>${isOutlier?'⚠ ':''}${escapeHtml(r.group.name)}</td><td>${dialedLabel}</td><td>${fmt(r.observedIn,2)}in</td><td>${fmt(r.predictedIn,2)}in</td><td>${fmt(r.errorIn,2)}in</td></tr>`;
     }).join('');
     resultEl.innerHTML = `
       <table class="stats-table">
@@ -3456,7 +3615,7 @@ document.getElementById('trueMultiBtn').addEventListener('click', ()=>{
         <tr><td>Fit RMSE</td><td>${fmt(rmse,2)} in</td></tr>
         <tr><td>Fit quality</td><td style="color:${quality.color};">${quality.label}</td></tr>
       </table>
-      <table class="stats-table" style="margin-top:8px;"><thead><tr><th>Group</th><th>Observed</th><th>Predicted</th><th>Error</th></tr></thead><tbody>${rows}</tbody></table>
+      <table class="stats-table" style="margin-top:8px;"><thead><tr><th>Group</th><th>Dialed</th><th>Observed</th><th>Predicted</th><th>Error</th></tr></thead><tbody>${rows}</tbody></table>
       <div class="hint" style="margin-top:6px;">Rows marked ⚠ deviate more than expected from the fit — worth double-checking that group's aim point, distance, or shot marking.</div>
       <button id="applyMultiTruingBtn" class="primary" style="width:100%; margin-top:8px;">APPLY TO PROFILE</button>`;
     document.getElementById('applyMultiTruingBtn').addEventListener('click', async ()=>{
