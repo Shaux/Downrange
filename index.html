@@ -793,8 +793,8 @@
   <div class="guide-section">
     <h2>Feature reference</h2>
 
-    <h3>Calibration &amp; units</h3>
-    <p>Calibration converts pixels to real-world units. Pick millimeters, centimeters, or inches before calibrating — recalibrating overwrites the scale for the current photo. Set your usual defaults on the Settings tab.</p>
+    <h3>Photo scale &amp; units</h3>
+    <p>The Setup tab's Calibrate mode converts pixels to real-world units — pick millimeters, centimeters, or inches before calibrating; recalibrating overwrites the scale for the current photo. Set your usual defaults on the Settings tab.</p>
 
     <h3>Marking: shots, aim point, cold-bore</h3>
     <p>Shot mode adds/removes bullet holes. Aim Point marks your point of aim (needed for windage/elevation/zero-shift numbers). Cold-Bore marks a single shot — typically your first round of the string — shown as a distinct diamond marker and reported separately; it is never included in the group's own statistics.</p>
@@ -822,10 +822,10 @@
 
     <h3>Composite groups</h3>
     <p>Select two or more saved groups and combine them. If every member has a marked point of aim, the composite centers on point of aim — each source group's own mean point of impact draws as a large hollow circle in that load's color (small dots are individual shots), kept visually distinct from the blue point-of-aim crosshair and the brass crosshair marking the overall pooled center, so you can see exactly how each load deviates from POA at a glance. A per-load breakdown table lists each source's offset, ES, and MR side by side. If any member lacks a point of aim, it falls back to centering each group on its own mean impact point instead (pooled precision only, no accuracy claim).</p>
-    <p>If the source groups have charge or seating depth values, a <strong>load-ladder POI consistency</strong> section appears below the breakdown once you've combined 3 or more of them — a table of POI shift and group size per load, plus suggested "node" windows (the flattest, most consistent stretch of 3+ consecutive loads) at each window size. Click a suggestion to highlight it in the table above.</p>
+    <p>If the source groups have charge or seating depth values, a <strong>load-ladder POI consistency</strong> section appears below the breakdown once 3 or more of them qualify. Toggle the X-axis between Charge and Seating depending on which ladder you ran, and toggle POI shift between Total, Windage, or Elevation depending on what you're isolating — a charge ladder's drift usually shows up almost entirely in elevation. The table below lists each load's POI offset from POA, its step from the previous load, and its own ES, sorted by your chosen axis. Below that, suggested windows show the flattest (lowest POI spread) stretch of loads at every window size from 3 upward — a tighter-but-shorter node and a looser-but-longer one are both shown rather than collapsed into one answer. Click a suggestion to highlight the matching rows in the table above.</p>
 
     <h3>Group Summary</h3>
-    <p>Pick any group and see it plotted visually — on the original photo (if attached when saving) or an auto-fit reference grid. Export as PNG to share.</p>
+    <p>Pick any group and see it plotted visually — on the original photo (if attached when saving) or an auto-fit reference grid. The grid isn't fixed size — it snaps to a round real-world spacing (e.g. "grid: 10mm") based on how the current group is scaled, with a small scale bar in the corner, so it's a genuine size reference rather than just a backdrop. Export as PNG to share.</p>
 
     <h3>Compare Groups</h3>
     <p>Every group's key numbers side by side, including Dispersion, with its own unit selector — mm/cm/in for linear, or mrad/MOA for angular (using each group's own distance; groups without a distance show "—" in angular mode). Tightest and loosest groups are highlighted automatically.</p>
@@ -834,10 +834,10 @@
     <p>Pools windage/elevation across every single group with both a point of aim and a distance — a quick check on whether your zero is holding steady across sessions. Each group has an "Include in Zero Check" toggle (on by default) so load-development groups — shot to compare charges or seating depths, not to confirm your zero — don't skew the pooled result. Excluded groups show a "NOT ZEROED" badge in the group list. View results in MOA, MRAD, or a linear unit (mm/cm/in, converted at a distance you set) — same unit options used elsewhere in the app.</p>
     <p>If you'd already dialed a scope correction before shooting a particular group (rather than re-zeroing), record it in that group's own "Scope offset" field in Setup, not globally — that way each group is judged against its own true underlying zero at the time it was shot, so Zero Check tracks how your zero actually changes over time instead of applying one blanket offset to every group regardless of when it was dialed in.</p>
     <p>After a mechanical change — rebedding, remounting a scope, a new barrel — mark a <strong>zero reset</strong> in the Zero Check panel. Everything pooled above only counts groups saved from that point forward, so old data from a different physical setup doesn't get mixed into the current trend. Multiple resets are tracked; only the most recent one is active.</p>
-    <p><strong>Scope offset:</strong> if you've already dialed a known correction into your scope to preserve your point of aim — rather than re-zeroing — enter that correction (MOA windage/elevation) under "Apply scope offset." Zero Check will then report drift relative to that adjusted baseline instead of raw zero, so it reflects where your rifle actually sits right now.</p>
 
     <h3>Trend &amp; ladder charts</h3>
     <p>Plots a chosen metric — group size stats, Dispersion, or velocity average/SD — against your choice of x-axis: save order (chronological), Charge, or Seating depth. Charge and Seating modes only include groups where that field is set, order by it, and label each point with its value — the classic ladder/OCW-test chart for spotting a flat "node" while developing a load. Units are shown directly on the chart axis and can be set independently of your marking unit — mm/cm/in, or mrad/MOA (using each group's own distance; groups lacking one are excluded from that view rather than shown wrong).</p>
+    <p>The Load/tag and Range dropdowns each let you pick more than one value — a group matches if it hits any value picked within a dropdown, and both dropdowns have to be satisfied at once if you've picked something in each. Leave a dropdown empty to skip filtering by it.</p>
     <p><strong>Velocity box plot:</strong> tick "Show velocity as box plot" to replace the line chart with one box per group showing the full min/median/max spread of that group's velocity readings — much more informative than a single average point for comparing consistency across charges or loads. Still respects the load/tag filter and x-axis mode.</p>
 
     <h3>Dispersion</h3>
@@ -847,7 +847,7 @@
     <p>Points CSV and Summary CSV give you raw and computed data. Export Session saves everything — groups, metadata, attached photos — as one JSON file; Import Session restores it, here or on another device.</p>
 
     <h3>Profiles</h3>
-    <p>A lightweight way to categorize groups by load: name a profile, optionally give it an Ammo/Load, Charge, and Caliber, then link a group to it (in Setup). Any of those three fields that are still blank on the group autofill from the profile automatically — handy if you shoot the same load repeatedly and don't want to retype it every session. Purely organizational; no calculations depend on it.</p>
+    <p>A lightweight way to categorize groups by load: name a profile, optionally give it an Ammo/Load, Charge, Caliber, and Zero range, then link a group to it (in Setup). Any of those four fields that are still blank on the group — Distance, in Zero range's case — autofill from the profile automatically, handy if you shoot the same load repeatedly and don't want to retype it every session. Purely organizational; no calculations depend on it.</p>
 
     <h3>Settings</h3>
     <p>Six default unit types, each applied everywhere that unit type appears: Measurement (mm/cm/in), Distance (m/yd/ft), Velocity (fps/m/s), Angular (MRAD/MOA — drives Zero Check), Temperature (°C/°F), and Pressure (hPa/inHg). Change any of them and every matching selector across Setup and Analysis updates immediately — there's no separate unit picker anywhere else in the app; it's all controlled from here.</p>
@@ -860,6 +860,7 @@
       <li>Zero-shift and MOA/mil figures need a distance set on that group to appear.</li>
       <li>CEP is shown two ways: measured (median distance from center across actual shots) and calculated (approximation from standard deviations) — they can diverge on small groups, which is normal.</li>
       <li>Log charge weight and/or seating depth on every group during a ladder test to unlock the Trend chart's ladder view.</li>
+      <li>The same charge/seating data also unlocks the Composite POI node-finder — combine 3 or more of those groups (each with a marked point of aim) to see it.</li>
     </ul>
   </div>
 
