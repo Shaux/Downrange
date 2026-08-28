@@ -41,6 +41,18 @@
   .toolbar{display:flex; gap:8px; flex-wrap:wrap; align-items:center;}
   .sep{width:1px; align-self:stretch; background:var(--border); margin:0 2px;}
   .mode-group{display:flex; border:1px solid var(--border); border-radius:4px; overflow:hidden;}
+  .multiselect{position:relative; flex:1; min-width:0;}
+  .multiselect-toggle{width:100%; text-align:left; background:var(--bg); border:1px solid var(--border); border-radius:4px; padding:8px 30px 8px 10px; color:var(--ink); font-family:'IBM Plex Mono', monospace; font-size:12px; cursor:pointer; position:relative; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .multiselect-toggle:hover{border-color:var(--brass);}
+  .multiselect-toggle:after{content:'▾'; color:var(--muted); font-size:9px; position:absolute; right:10px; top:50%; transform:translateY(-50%);}
+  .multiselect-toggle.open:after{content:'▴';}
+  .multiselect-panel{display:none; position:absolute; top:calc(100% + 4px); left:0; right:0; z-index:30; background:var(--panel-2); border:1px solid var(--brass); border-radius:4px; max-height:220px; overflow-y:auto; padding:4px; box-shadow:0 6px 18px rgba(0,0,0,0.4);}
+  .multiselect-panel.open{display:block;}
+  .multiselect-group-label{font-size:9px; text-transform:uppercase; letter-spacing:0.05em; color:var(--brass-bright); padding:6px 8px 3px; font-family:'Oswald', sans-serif;}
+  .multiselect-option{display:flex; align-items:center; gap:8px; padding:6px 8px; border-radius:3px; cursor:pointer; font-size:12px; color:var(--ink); font-family:'IBM Plex Mono', monospace;}
+  .multiselect-option:hover{background:rgba(184,121,58,0.15);}
+  .multiselect-option input{width:auto; margin:0; accent-color:var(--brass);}
+  .multiselect-empty{padding:8px; font-size:11px; color:var(--muted);}
   button, .file-btn{font-family:'Oswald', sans-serif; text-transform:uppercase; letter-spacing:0.05em; font-size:12px; font-weight:600; background:var(--panel-2); color:var(--ink); border:1px solid var(--border); padding:8px 12px; cursor:pointer; border-radius:4px; transition:background 0.15s, color 0.15s, border-color 0.15s;}
   button:hover, .file-btn:hover{border-color:var(--brass);}
   .mode-group button{border:none; border-radius:0; border-right:1px solid var(--border);}
@@ -381,6 +393,15 @@
         </select>
       </div>
       <div id="zeroCheckBody"></div>
+      <div class="divider"></div>
+      <div class="section-title" style="font-size:11px;">ZERO RESET HISTORY</div>
+      <div class="hint" style="margin-bottom:8px;">After a mechanical change (rebedding, remounting a scope, a new barrel) or a deliberate re-zero, mark it here — Zero Check will only pool groups shot from that point on, so old data from before the change doesn't get mixed in.</div>
+      <div class="field-row">
+        <label>Note</label>
+        <input type="text" id="zeroResetNoteInput" placeholder="e.g. remounted scope (optional)">
+      </div>
+      <button id="zeroResetMarkBtn" style="width:100%;">MARK ZERO RESET NOW</button>
+      <div id="zeroResetHistoryList" style="margin-top:10px;"></div>
     </div>
   </div>
 
@@ -404,6 +425,27 @@
       <div class="legend" id="summaryLegend" style="margin-top:8px;"></div>
       <div class="hint" id="summaryStatsLine" style="margin-top:6px;"></div>
       <div id="summaryBreakdown"></div>
+      <div id="poiNodeFinder" style="display:none;">
+        <div class="divider"></div>
+        <div class="section-title" style="font-size:11px;">LOAD LADDER: POI CONSISTENCY</div>
+        <div class="field-row">
+          <label>X-axis</label>
+          <div class="mode-group">
+            <button id="nodeXChargeBtn" class="active" type="button">CHARGE</button>
+            <button id="nodeXSeatingBtn" type="button">SEATING</button>
+          </div>
+        </div>
+        <div class="field-row">
+          <label>POI shift</label>
+          <div class="mode-group">
+            <button id="nodeShiftTotalBtn" class="active" type="button">TOTAL</button>
+            <button id="nodeShiftWindageBtn" type="button">WINDAGE</button>
+            <button id="nodeShiftElevationBtn" type="button">ELEVATION</button>
+          </div>
+        </div>
+        <div id="poiNodeTable"></div>
+        <div id="poiNodeSuggestions" style="margin-top:10px;"></div>
+      </div>
     </div>
 
     <div class="panel" style="margin-bottom:14px;">
@@ -422,9 +464,20 @@
         </select>
       </div>
       <div class="field-row">
-        <label>Filter</label>
-        <select id="trendFilterSelect"><option value="">All groups</option></select>
+        <label>Load/tag</label>
+        <div class="multiselect" id="trendFilterMultiselect">
+          <button type="button" class="multiselect-toggle" id="trendFilterToggle">All groups</button>
+          <div class="multiselect-panel" id="trendFilterPanel"></div>
+        </div>
       </div>
+      <div class="field-row">
+        <label>Range</label>
+        <div class="multiselect" id="trendRangeMultiselect">
+          <button type="button" class="multiselect-toggle" id="trendRangeToggle">All ranges</button>
+          <div class="multiselect-panel" id="trendRangePanel"></div>
+        </div>
+      </div>
+      <div class="hint" style="margin:-6px 0 10px;">Pick more than one within a filter to match any of them; combine both filters and a group must match each.</div>
       <div class="field-row">
         <label>Units</label>
         <select id="trendUnitSelect" style="max-width:110px;">
@@ -769,6 +822,7 @@
 
     <h3>Composite groups</h3>
     <p>Select two or more saved groups and combine them. If every member has a marked point of aim, the composite centers on point of aim — each source group's own mean point of impact draws as a large hollow circle in that load's color (small dots are individual shots), kept visually distinct from the blue point-of-aim crosshair and the brass crosshair marking the overall pooled center, so you can see exactly how each load deviates from POA at a glance. A per-load breakdown table lists each source's offset, ES, and MR side by side. If any member lacks a point of aim, it falls back to centering each group on its own mean impact point instead (pooled precision only, no accuracy claim).</p>
+    <p>If the source groups have charge or seating depth values, a <strong>load-ladder POI consistency</strong> section appears below the breakdown once you've combined 3 or more of them — a table of POI shift and group size per load, plus suggested "node" windows (the flattest, most consistent stretch of 3+ consecutive loads) at each window size. Click a suggestion to highlight it in the table above.</p>
 
     <h3>Group Summary</h3>
     <p>Pick any group and see it plotted visually — on the original photo (if attached when saving) or an auto-fit reference grid. Export as PNG to share.</p>
@@ -779,6 +833,7 @@
     <h3>Zero Check</h3>
     <p>Pools windage/elevation across every single group with both a point of aim and a distance — a quick check on whether your zero is holding steady across sessions. Each group has an "Include in Zero Check" toggle (on by default) so load-development groups — shot to compare charges or seating depths, not to confirm your zero — don't skew the pooled result. Excluded groups show a "NOT ZEROED" badge in the group list. View results in MOA, MRAD, or a linear unit (mm/cm/in, converted at a distance you set) — same unit options used elsewhere in the app.</p>
     <p>If you'd already dialed a scope correction before shooting a particular group (rather than re-zeroing), record it in that group's own "Scope offset" field in Setup, not globally — that way each group is judged against its own true underlying zero at the time it was shot, so Zero Check tracks how your zero actually changes over time instead of applying one blanket offset to every group regardless of when it was dialed in.</p>
+    <p>After a mechanical change — rebedding, remounting a scope, a new barrel — mark a <strong>zero reset</strong> in the Zero Check panel. Everything pooled above only counts groups saved from that point forward, so old data from a different physical setup doesn't get mixed into the current trend. Multiple resets are tracked; only the most recent one is active.</p>
     <p><strong>Scope offset:</strong> if you've already dialed a known correction into your scope to preserve your point of aim — rather than re-zeroing — enter that correction (MOA windage/elevation) under "Apply scope offset." Zero Check will then report drift relative to that adjusted baseline instead of raw zero, so it reflects where your rifle actually sits right now.</p>
 
     <h3>Trend &amp; ladder charts</h3>
@@ -1576,6 +1631,42 @@ function drawHollowCircleOn(c,p,r,color){
   c.strokeStyle=color; c.lineWidth=2.5;
   c.beginPath(); c.arc(p.x,p.y,Math.max(r,0),0,Math.PI*2); c.stroke();
 }
+// Given a rough target spacing in real units, returns the nearest "nice" round
+// number (1/2/5 × a power of 10) so grid lines land on readable values.
+function niceGridStep(targetUnits){
+  if(!(targetUnits > 0)) return 1;
+  const magnitude = Math.pow(10, Math.floor(Math.log10(targetUnits)));
+  const residual = targetUnits / magnitude;
+  let nice;
+  if(residual < 1.5) nice = 1;
+  else if(residual < 3.5) nice = 2;
+  else if(residual < 7.5) nice = 5;
+  else nice = 10;
+  return nice * magnitude;
+}
+// Draws gridlines at a real-world "nice" spacing (derived from the current
+// scale) rather than a fixed pixel division count, and labels the spacing in a
+// corner so the grid is an actual scale reference, not just a visual backdrop.
+function drawScaledGridOn(c, W, H, scale, unit){
+  const targetPxPerDivision = 65;
+  const step = niceGridStep(targetPxPerDivision / scale);
+  const stepPx = step * scale;
+  if(!(stepPx > 2)){
+    drawSimpleGridOn(c, W, H, 10);
+    return;
+  }
+  c.strokeStyle='rgba(0,0,0,0.08)'; c.lineWidth=1;
+  for(let x=W/2%stepPx; x<=W; x+=stepPx){ c.beginPath(); c.moveTo(x,0); c.lineTo(x,H); c.stroke(); }
+  for(let y=H/2%stepPx; y<=H; y+=stepPx){ c.beginPath(); c.moveTo(0,y); c.lineTo(W,y); c.stroke(); }
+
+  const stepLabel = step>=1 ? fmt(step,0) : fmt(step,2);
+  c.fillStyle='#6B665B'; c.font='9px "IBM Plex Mono"'; c.textAlign='left';
+  c.fillText(`grid: ${stepLabel}${unit}`, 8, H-8);
+  c.beginPath(); c.moveTo(8, H-18); c.lineTo(8+stepPx, H-18); c.strokeStyle='#6B665B'; c.stroke();
+  c.beginPath(); c.moveTo(8,H-21); c.lineTo(8,H-15); c.stroke();
+  c.beginPath(); c.moveTo(8+stepPx,H-21); c.lineTo(8+stepPx,H-15); c.stroke();
+  c.textAlign='left';
+}
 function drawSimpleGridOn(c,W,H,divisions){
   c.strokeStyle='rgba(0,0,0,0.08)'; c.lineWidth=1;
   const stepX=W/divisions, stepY=H/divisions;
@@ -1961,6 +2052,148 @@ function renderCompositeBreakdown(g){
     </table>
     <div class="hint" style="margin-top:6px;">Each source group's own center-of-group offset from the shared point of aim, alongside its own precision — compare loads on accuracy and precision at once.</div>`;
 }
+
+// ================= Composite: load-ladder POI consistency (node finder) =================
+let nodeXMode = 'charge'; // 'charge' | 'seating'
+let nodeShiftMode = 'total'; // 'total' | 'windage' | 'elevation'
+
+function shiftDistance(a, b, mode){
+  if(mode==='windage') return Math.abs(a.windage-b.windage);
+  if(mode==='elevation') return Math.abs(a.elevation-b.elevation);
+  return Math.hypot(a.windage-b.windage, a.elevation-b.elevation);
+}
+
+function renderPoiNodeFinder(g){
+  const panel = document.getElementById('poiNodeFinder');
+  if(g.type !== 'composite' || !g.aimReal || !g.sourceGroupIds || !g.sourceGroupIds.length){
+    panel.style.display = 'none';
+    return;
+  }
+
+  const bySourceId = {};
+  g.shotsReal.forEach(p=>{
+    if(p.sourceId==null) return;
+    (bySourceId[p.sourceId] = bySourceId[p.sourceId] || []).push(p);
+  });
+
+  const items = g.sourceGroupIds.map(id=>{
+    const srcGroup = groups.find(x=>x.id===id);
+    const pts = bySourceId[id];
+    if(!srcGroup || !pts || !pts.length) return null;
+    let xValue = null;
+    if(nodeXMode === 'charge'){
+      xValue = srcGroup.charge;
+    } else if(srcGroup.seating!=null){
+      xValue = convertLinear(srcGroup.seating, srcGroup.seatingUnit||'mm', 'mm');
+    }
+    if(xValue==null) return null;
+    const c = centroid(pts); // shots are already stored relative to the shared POA (0,0)
+    const offset = {windage: c.x, elevation: -c.y};
+    const s = fullGroupStats(pts, null, null, null);
+    return {
+      id, name: srcGroup.name, xValue,
+      xLabel: nodeXMode==='charge' ? `${fmt(xValue,2)}gr` : `${fmt(xValue,2)}mm`,
+      offset, es: s.es
+    };
+  }).filter(Boolean);
+
+  if(items.length < 3){
+    panel.style.display = 'none';
+    return;
+  }
+  panel.style.display = 'block';
+  items.sort((a,b)=>a.xValue-b.xValue);
+
+  const shiftLabel = nodeShiftMode==='total' ? 'from POA' : nodeShiftMode==='windage' ? 'windage from POA' : 'elevation from POA';
+  const rows = items.map((it,i)=>{
+    const stepStr = i===0 ? '—' : `${fmt(shiftDistance(it.offset, items[i-1].offset, nodeShiftMode),3)} ${g.unit}`;
+    const totalStr = `${fmt(shiftDistance(it.offset, {windage:0,elevation:0}, nodeShiftMode),3)} ${g.unit}`;
+    return `<tr><td>${it.xLabel}</td><td>${escapeHtml(it.name)}</td><td>${totalStr}</td><td>${stepStr}</td><td>${it.es!==null?fmt(it.es,3)+' '+g.unit:'—'}</td></tr>`;
+  }).join('');
+  document.getElementById('poiNodeTable').innerHTML = `
+    <table class="stats-table">
+      <thead><tr><th>${nodeXMode==='charge'?'Charge':'Seating'}</th><th>Group</th><th>POI ${shiftLabel}</th><th>Step</th><th>ES</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+
+  // For every window size k (starting at 3), find the contiguous k-length window
+  // with the smallest POI spread (largest pairwise distance among its members) —
+  // reported per size rather than collapsed to one answer, since a tighter-but-
+  // shorter node and a looser-but-longer one are a real trade-off to see, not
+  // something to decide silently.
+  const n = items.length;
+  const suggestions = [];
+  for(let k=3; k<=n; k++){
+    let best = null;
+    for(let start=0; start+k<=n; start++){
+      const windowItems = items.slice(start, start+k);
+      let maxSpread = 0;
+      for(let i=0;i<windowItems.length;i++){
+        for(let j=i+1;j<windowItems.length;j++){
+          maxSpread = Math.max(maxSpread, shiftDistance(windowItems[i].offset, windowItems[j].offset, nodeShiftMode));
+        }
+      }
+      if(!best || maxSpread < best.maxSpread) best = {k, maxSpread, items:windowItems};
+    }
+    if(best) suggestions.push(best);
+  }
+
+  document.getElementById('poiNodeSuggestions').innerHTML = suggestions.length ? `
+    <div class="section-title" style="font-size:11px;">SUGGESTED WINDOWS (lowest POI spread per size)</div>
+    <table class="stats-table">
+      <thead><tr><th>Size</th><th>Range</th><th>POI spread</th><th>ES range</th></tr></thead>
+      <tbody>${suggestions.map(sug=>{
+        const lo = sug.items[0].xLabel, hi = sug.items[sug.items.length-1].xLabel;
+        const esVals = sug.items.map(it=>it.es).filter(v=>v!==null);
+        const esRange = esVals.length ? `${fmt(Math.min(...esVals),2)}–${fmt(Math.max(...esVals),2)} ${g.unit}` : '—';
+        return `<tr data-node-window="${sug.k}"><td>${sug.k}</td><td>${lo} – ${hi}</td><td>${fmt(sug.maxSpread,3)} ${g.unit}</td><td>${esRange}</td></tr>`;
+      }).join('')}</tbody>
+    </table>
+    <div class="hint" style="margin-top:6px;">"POI spread" is the largest distance between any two loads' point of impact within that window — the flattest, most repeatable stretch across that many consecutive loads. ES range shows whether group size held up across it too. A tighter-but-shorter window and a looser-but-longer one are both shown so you judge the trade-off yourself.</div>
+  ` : '<div class="empty-note">Need at least 3 qualifying source groups to suggest a window.</div>';
+
+  document.querySelectorAll('#poiNodeSuggestions tr[data-node-window]').forEach(row=>{
+    row.style.cursor = 'pointer';
+    row.addEventListener('click', ()=>{
+      const k = Number(row.dataset.nodeWindow);
+      const sug = suggestions.find(s=>s.k===k);
+      if(!sug) return;
+      const highlightXValues = new Set(sug.items.map(it=>it.xValue));
+      document.querySelectorAll('#poiNodeTable tbody tr').forEach((tr,i)=>{
+        tr.style.background = highlightXValues.has(items[i].xValue) ? 'rgba(184,121,58,0.18)' : '';
+      });
+      document.querySelectorAll('#poiNodeSuggestions tbody tr').forEach(r=> r.style.background = '');
+      row.style.background = 'rgba(184,121,58,0.28)';
+    });
+  });
+}
+document.getElementById('nodeXChargeBtn').addEventListener('click', ()=>{
+  nodeXMode = 'charge';
+  document.getElementById('nodeXChargeBtn').classList.add('active');
+  document.getElementById('nodeXSeatingBtn').classList.remove('active');
+  renderSummary();
+});
+document.getElementById('nodeXSeatingBtn').addEventListener('click', ()=>{
+  nodeXMode = 'seating';
+  document.getElementById('nodeXSeatingBtn').classList.add('active');
+  document.getElementById('nodeXChargeBtn').classList.remove('active');
+  renderSummary();
+});
+document.getElementById('nodeShiftTotalBtn').addEventListener('click', ()=>{
+  nodeShiftMode = 'total';
+  ['nodeShiftTotalBtn','nodeShiftWindageBtn','nodeShiftElevationBtn'].forEach(id=> document.getElementById(id).classList.toggle('active', id==='nodeShiftTotalBtn'));
+  renderSummary();
+});
+document.getElementById('nodeShiftWindageBtn').addEventListener('click', ()=>{
+  nodeShiftMode = 'windage';
+  ['nodeShiftTotalBtn','nodeShiftWindageBtn','nodeShiftElevationBtn'].forEach(id=> document.getElementById(id).classList.toggle('active', id==='nodeShiftWindageBtn'));
+  renderSummary();
+});
+document.getElementById('nodeShiftElevationBtn').addEventListener('click', ()=>{
+  nodeShiftMode = 'elevation';
+  ['nodeShiftTotalBtn','nodeShiftWindageBtn','nodeShiftElevationBtn'].forEach(id=> document.getElementById(id).classList.toggle('active', id==='nodeShiftElevationBtn'));
+  renderSummary();
+});
 
 // Full metrics for a set of real-unit points.
 function fullGroupStats(pts, aim, distanceLinear, caliberLinear){
@@ -2366,7 +2599,7 @@ document.getElementById('compositeBtn').addEventListener('click', async ()=>{
     g.shotsReal.forEach(s=>{
       let dx = s.x-ref.x, dy = s.y-ref.y;
       if(g.unit !== targetUnit){ dx = convertLinear(dx, g.unit, targetUnit); dy = convertLinear(dy, g.unit, targetUnit); }
-      merged.push({x:dx, y:dy, source:g.name});
+      merged.push({x:dx, y:dy, source:g.name, sourceId:g.id});
     });
   });
   const compositeAimReal = allHaveAim ? {x:0, y:0} : null;
@@ -2439,9 +2672,58 @@ document.getElementById('zeroCheckUnitSelect').addEventListener('change', ()=>{
 document.getElementById('zeroCheckRefDistance').addEventListener('input', ()=>{ persistZeroCheckSettings(); renderZeroCheck(); });
 document.getElementById('zeroCheckRefDistanceUnit').addEventListener('change', ()=>{ persistZeroCheckSettings(); renderZeroCheck(); });
 
+let zeroResets = []; // [{id, ts, note}], most recent reset determines the pooling cutoff
+async function loadZeroResets(){
+  try{
+    const res = await storageGet('downrange:zerocheck-resets:v1', false);
+    if(res && res.value) zeroResets = JSON.parse(res.value);
+  }catch(e){ zeroResets = []; }
+  renderZeroResetHistory();
+}
+async function persistZeroResets(){
+  try{ await storageSet('downrange:zerocheck-resets:v1', JSON.stringify(zeroResets), false); }
+  catch(e){ console.error('zero reset storage failed', e); }
+}
+function mostRecentResetTs(){
+  if(!zeroResets.length) return null;
+  return Math.max(...zeroResets.map(r=>r.ts));
+}
+document.getElementById('zeroResetMarkBtn').addEventListener('click', async ()=>{
+  const note = document.getElementById('zeroResetNoteInput').value.trim() || null;
+  zeroResets.push({id:Date.now(), ts:Date.now(), note});
+  document.getElementById('zeroResetNoteInput').value = '';
+  await persistZeroResets();
+  renderZeroResetHistory();
+  renderZeroCheck();
+});
+function renderZeroResetHistory(){
+  const el = document.getElementById('zeroResetHistoryList');
+  if(!zeroResets.length){ el.innerHTML = '<div class="empty-note">No resets marked yet — Zero Check pools your full group history.</div>'; return; }
+  const sorted = [...zeroResets].sort((a,b)=>b.ts-a.ts);
+  const latestTs = mostRecentResetTs();
+  el.innerHTML = sorted.map(r=>`
+    <div class="group-card-header" style="padding:6px 10px;">
+      <span class="name" style="font-size:12px;">${new Date(r.ts).toLocaleDateString()} ${new Date(r.ts).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}${r.note?' — '+escapeHtml(r.note):''}</span>
+      ${r.ts===latestTs ? '<span class="type-tag single" style="margin-right:6px;">ACTIVE</span>' : ''}
+      <button data-del-reset="${r.id}">✕</button>
+    </div>`).join('');
+  el.querySelectorAll('[data-del-reset]').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      zeroResets = zeroResets.filter(r=>r.id !== Number(btn.dataset.delReset));
+      await persistZeroResets();
+      renderZeroResetHistory();
+      renderZeroCheck();
+    });
+  });
+}
+
 function computeZeroCheck(){
-  const eligible = groups.filter(g=> g.type==='single' && g.includeInZeroCheck !== false && g.aimReal && g.distance && g.distanceUnit && g.shotsReal.length>=1);
-  if(!eligible.length) return null;
+  const cutoffTs = mostRecentResetTs();
+  const afterCutoff = g => cutoffTs===null || g.id >= cutoffTs;
+  const allEligible = groups.filter(g=> g.type==='single' && g.includeInZeroCheck !== false && g.aimReal && g.distance && g.distanceUnit && g.shotsReal.length>=1);
+  const eligible = allEligible.filter(afterCutoff);
+  const excludedByReset = allEligible.length - eligible.length;
+  if(!eligible.length) return {n:0, excludedByReset, windMoaAvg:null, elevMoaAvg:null, windMoaSD:null, elevMoaSD:null, offsetGroupCount:0};
   const windMoas=[], elevMoas=[];
   let offsetGroupCount = 0;
   eligible.forEach(g=>{
@@ -2460,6 +2742,7 @@ function computeZeroCheck(){
 
   return {
     n: eligible.length,
+    excludedByReset,
     offsetGroupCount,
     windMoaAvg: windMoas.length ? average(windMoas) : null,
     elevMoaAvg: elevMoas.length ? average(elevMoas) : null,
@@ -2471,8 +2754,11 @@ function computeZeroCheck(){
 function renderZeroCheck(){
   const el = document.getElementById('zeroCheckBody');
   const z = computeZeroCheck();
-  if(!z){
-    el.innerHTML = '<div class="empty-note">Need at least one single group with a point of aim, a distance set, and "Include in Zero Check" turned on.</div>';
+  if(!z || !z.n){
+    const resetNote = z && z.excludedByReset>0
+      ? ` (${z.excludedByReset} older group(s) excluded by your active zero reset)`
+      : '';
+    el.innerHTML = `<div class="empty-note">Need at least one single group with a point of aim, a distance set, and "Include in Zero Check" turned on${resetNote}.</div>`;
     return;
   }
   const unit = document.getElementById('zeroCheckUnitSelect').value;
@@ -2502,6 +2788,10 @@ function renderZeroCheck(){
   const offsetNote = z.offsetGroupCount>0
     ? `<div class="hint" style="margin-top:6px; color:var(--brass-bright);">${z.offsetGroupCount} of ${z.n} group(s) had a scope offset recorded (set per-group in Setup) — figures below are each group's drift relative to its own true zero at the time, not raw POA/POI.</div>`
     : '';
+  const resetTs = mostRecentResetTs();
+  const resetNote = resetTs
+    ? `<div class="hint" style="margin-top:6px; color:var(--brass-bright);">Only counting groups saved since your last zero reset (${new Date(resetTs).toLocaleDateString()})${z.excludedByReset>0 ? ` — ${z.excludedByReset} older group(s) excluded` : ''}.</div>`
+    : '';
 
   el.innerHTML = `
     <table class="stats-table">
@@ -2512,7 +2802,8 @@ function renderZeroCheck(){
       <tr><td>Elevation consistency (SD)</td><td>${elevSDVal!==null ? fmt(elevSDVal,digits)+' '+unitLabel : '—'}</td></tr>
     </table>
     <div class="hint" style="margin-top:6px;">Pooled zero-shift suggestion across every single group with a marked point of aim and distance, excluding any with "Include in Zero Check" turned off. Lower SD means a more consistent zero across sessions.</div>
-    ${offsetNote}`;
+    ${offsetNote}
+    ${resetNote}`;
 }
 
 // ================= Group Summary panel =================
@@ -2568,6 +2859,7 @@ function renderSummary(){
   legendEl.innerHTML = '';
   statsLine.textContent = '';
   document.getElementById('summaryBreakdown').innerHTML = '';
+  document.getElementById('poiNodeFinder').style.display = 'none';
   sctx.clearRect(0,0,W,H);
 
   const g = getSelectedSummaryGroup();
@@ -2612,6 +2904,7 @@ function renderSummary(){
       const s = fullGroupStats(pts, aim, distanceLinear, groupCaliberLinear(g));
       statsLine.textContent = `ES ${fmt(s.es)} ${g.unit} · MR ${fmt(s.mr)} ${g.unit} · CEP50 ${fmt(s.cepMeasured)} ${g.unit}`;
       document.getElementById('summaryBreakdown').innerHTML = renderCompositeBreakdown(g);
+      renderPoiNodeFinder(g);
     }
 
     pts.forEach(p=>{
@@ -2668,7 +2961,7 @@ function renderSummary(){
     const allPts = aim ? [...pts, aim] : pts;
     const t = computeAutoFitTransform(allPts, W, H, 0.28);
     sctx.fillStyle = '#EDE7D9'; sctx.fillRect(0,0,W,H);
-    drawSimpleGridOn(sctx, W, H, 10);
+    drawScaledGridOn(sctx, W, H, t.scale, g.unit);
     finishDraw(t.scale, t.offsetX, t.offsetY);
   }
 }
@@ -2707,33 +3000,103 @@ document.getElementById('trendXSeatingBtn').addEventListener('click', ()=>{
   renderTrendChart();
 });
 document.getElementById('trendMetricSelect').addEventListener('change', renderTrendChart);
-document.getElementById('trendFilterSelect').addEventListener('change', renderTrendChart);
+// Reusable checkbox-dropdown multiselect: a collapsible, app-themed alternative to
+// native <select multiple>, which is functional but doesn't match the rest of the UI
+// and forces a fixed-height list. Closed state shows a short summary ("All groups",
+// one label, or "N selected"); open state lists checkboxes, grouped if given groups.
+function buildMultiselect(toggleId, panelId, getOptionGroups, getSelectedSet, onChange, emptyLabel){
+  const toggle = document.getElementById(toggleId);
+  const panel = document.getElementById(panelId);
+
+  function closeAllOthers(){
+    document.querySelectorAll('.multiselect-panel.open').forEach(p=>{ if(p!==panel) p.classList.remove('open'); });
+    document.querySelectorAll('.multiselect-toggle.open').forEach(t=>{ if(t!==toggle) t.classList.remove('open'); });
+  }
+  function renderPanel(){
+    const groupsList = getOptionGroups();
+    const selected = getSelectedSet();
+    let html = '';
+    groupsList.forEach(group=>{
+      if(group.label) html += `<div class="multiselect-group-label">${escapeHtml(group.label)}</div>`;
+      group.options.forEach(opt=>{
+        const checked = selected.has(opt.value) ? 'checked' : '';
+        html += `<label class="multiselect-option"><input type="checkbox" value="${escapeHtml(opt.value)}" ${checked}> ${escapeHtml(opt.label)}</label>`;
+      });
+    });
+    panel.innerHTML = html || `<div class="multiselect-empty">Nothing to filter by yet.</div>`;
+    panel.querySelectorAll('input[type=checkbox]').forEach(cb=>{
+      cb.addEventListener('change', ()=>{
+        const set = getSelectedSet();
+        if(cb.checked) set.add(cb.value); else set.delete(cb.value);
+        updateToggleLabel();
+        onChange();
+      });
+    });
+  }
+  function updateToggleLabel(){
+    const selected = getSelectedSet();
+    if(selected.size === 0){ toggle.textContent = emptyLabel; return; }
+    if(selected.size === 1){
+      const val = [...selected][0];
+      for(const group of getOptionGroups()){
+        const found = group.options.find(o=>o.value===val);
+        if(found){ toggle.textContent = found.label; return; }
+      }
+      toggle.textContent = val;
+      return;
+    }
+    toggle.textContent = `${selected.size} selected`;
+  }
+  toggle.addEventListener('click', (e)=>{
+    e.stopPropagation();
+    const willOpen = !panel.classList.contains('open');
+    closeAllOthers();
+    if(willOpen){ renderPanel(); panel.classList.add('open'); toggle.classList.add('open'); }
+    else { panel.classList.remove('open'); toggle.classList.remove('open'); }
+  });
+  panel.addEventListener('click', (e)=> e.stopPropagation());
+  document.addEventListener('click', ()=>{ panel.classList.remove('open'); toggle.classList.remove('open'); });
+
+  updateToggleLabel();
+  return { refresh(){ if(panel.classList.contains('open')) renderPanel(); updateToggleLabel(); } };
+}
+
+let trendFilterSelectedValues = new Set();
+let trendRangeSelectedValues = new Set();
+let trendFilterOptionGroups = [];
+let trendRangeOptionGroups = [];
+const trendFilterMultiselect = buildMultiselect('trendFilterToggle','trendFilterPanel', ()=>trendFilterOptionGroups, ()=>trendFilterSelectedValues, renderTrendChart, 'All groups');
+const trendRangeMultiselect = buildMultiselect('trendRangeToggle','trendRangePanel', ()=>trendRangeOptionGroups, ()=>trendRangeSelectedValues, renderTrendChart, 'All ranges');
+
 document.getElementById('trendUnitSelect').addEventListener('change', renderTrendChart);
 document.getElementById('trendVelUnitSelect').addEventListener('change', renderTrendChart);
 document.getElementById('trendBoxPlotInput').addEventListener('change', renderTrendChart);
 
 function populateTrendFilterSelect(){
-  const sel = document.getElementById('trendFilterSelect');
-  const prevVal = sel.value;
   const ammoSet = new Set(), tagSet = new Set();
   groups.forEach(g=>{
     if(g.type !== 'single') return;
     if(g.ammo) ammoSet.add(g.ammo);
     (g.tags||[]).forEach(t=> tagSet.add(t));
   });
-  let html = '<option value="">All groups</option>';
-  if(ammoSet.size){
-    html += '<optgroup label="By load (Ammo)">' +
-      [...ammoSet].sort().map(a=>`<option value="ammo::${escapeHtml(a)}">${escapeHtml(a)}</option>`).join('') +
-      '</optgroup>';
-  }
-  if(tagSet.size){
-    html += '<optgroup label="By tag">' +
-      [...tagSet].sort().map(t=>`<option value="tag::${escapeHtml(t)}">${escapeHtml(t)}</option>`).join('') +
-      '</optgroup>';
-  }
-  sel.innerHTML = html;
-  if([...sel.options].some(o=>o.value===prevVal)) sel.value = prevVal;
+  trendFilterOptionGroups = [];
+  if(ammoSet.size) trendFilterOptionGroups.push({label:'By load (Ammo)', options:[...ammoSet].sort().map(a=>({value:`ammo::${a}`, label:a}))});
+  if(tagSet.size) trendFilterOptionGroups.push({label:'By tag', options:[...tagSet].sort().map(t=>({value:`tag::${t}`, label:t}))});
+  const validValues = new Set(trendFilterOptionGroups.flatMap(g=>g.options.map(o=>o.value)));
+  [...trendFilterSelectedValues].forEach(v=>{ if(!validValues.has(v)) trendFilterSelectedValues.delete(v); });
+
+  const rangeMap = new Map(); // "value|unit" -> display label, e.g. "100m"
+  groups.forEach(g=>{
+    if(g.type !== 'single' || !g.distance || !g.distanceUnit) return;
+    rangeMap.set(`${g.distance}|${g.distanceUnit}`, `${g.distance}${g.distanceUnit}`);
+  });
+  const sortedRanges = [...rangeMap.entries()].sort((a,b)=> parseFloat(a[0]) - parseFloat(b[0]));
+  trendRangeOptionGroups = [{label:null, options: sortedRanges.map(([value,label])=>({value,label}))}];
+  const validRangeValues = new Set(sortedRanges.map(([v])=>v));
+  [...trendRangeSelectedValues].forEach(v=>{ if(!validRangeValues.has(v)) trendRangeSelectedValues.delete(v); });
+
+  trendFilterMultiselect.refresh();
+  trendRangeMultiselect.refresh();
 }
 
 function quantileSorted(sorted, q){
@@ -2797,7 +3160,8 @@ function renderTrendChart(){
   const metric = document.getElementById('trendMetricSelect').value;
   const unit = document.getElementById('trendUnitSelect').value;
   const velUnit = document.getElementById('trendVelUnitSelect').value;
-  const filterVal = document.getElementById('trendFilterSelect').value;
+  const filterVals = [...trendFilterSelectedValues];
+  const rangeVals = [...trendRangeSelectedValues];
   const boxPlotMode = document.getElementById('trendBoxPlotInput').checked;
   const hintEl = document.getElementById('trendHint');
 
@@ -2805,16 +3169,24 @@ function renderTrendChart(){
   document.getElementById('trendUnitSelect').disabled = boxPlotMode;
 
   let singles = groups.filter(g=>g.type==='single' && g.shotsReal.length>=2);
-  let filterLabel = '';
-  if(filterVal.startsWith('ammo::')){
-    const val = filterVal.slice(6);
-    singles = singles.filter(g=>g.ammo === val);
-    filterLabel = ` · load: ${val}`;
-  } else if(filterVal.startsWith('tag::')){
-    const val = filterVal.slice(5);
-    singles = singles.filter(g=> (g.tags||[]).includes(val));
-    filterLabel = ` · tag: ${val}`;
+  let filterLabelParts = [];
+  if(filterVals.length){
+    const ammoVals = filterVals.filter(v=>v.startsWith('ammo::')).map(v=>v.slice(6));
+    const tagVals = filterVals.filter(v=>v.startsWith('tag::')).map(v=>v.slice(5));
+    singles = singles.filter(g=>
+      (ammoVals.length && ammoVals.includes(g.ammo)) ||
+      (tagVals.length && (g.tags||[]).some(t=>tagVals.includes(t)))
+    );
+    const bits = [];
+    if(ammoVals.length) bits.push(`load: ${ammoVals.join(', ')}`);
+    if(tagVals.length) bits.push(`tag: ${tagVals.join(', ')}`);
+    filterLabelParts.push(bits.join('; '));
   }
+  if(rangeVals.length){
+    singles = singles.filter(g=> g.distance && g.distanceUnit && rangeVals.includes(`${g.distance}|${g.distanceUnit}`));
+    filterLabelParts.push(`range: ${rangeVals.map(v=>v.split('|').join('')).join(', ')}`);
+  }
+  const filterLabel = filterLabelParts.length ? ' · ' + filterLabelParts.join(' · ') : '';
   if(trendXMode === 'charge') singles = singles.filter(g=>g.charge);
   if(trendXMode === 'seating') singles = singles.filter(g=>g.seating!==null && g.seating!==undefined);
 
@@ -3840,7 +4212,7 @@ loadSettings().then(()=>{
   updateCurrentStats();
 });
 loadPhotos().then(loadGroups);
-loadZeroCheckSettings().then(()=>{ renderZeroCheck(); });
+loadZeroResets().then(()=>{ loadZeroCheckSettings().then(()=>{ renderZeroCheck(); }); });
 loadProfiles();
 checkFirstRun();
 if(window.__downrangeStorageIsMemoryOnly){

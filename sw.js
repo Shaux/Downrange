@@ -1,4 +1,4 @@
-const CACHE_NAME = 'downrange-v19';
+const CACHE_NAME = 'downrange-v21';
 const ASSETS = [
   './',
   './index.html',
